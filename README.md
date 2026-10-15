@@ -4,7 +4,7 @@ Vitrine estática publicada no GitHub Pages, com login, catálogo administrável
 
 ## Configurar o Supabase
 
-1. As migrações de `supabase/migrations/` já foram aplicadas ao projeto Supabase **Berit**. A migração de categorias cria a tabela, as permissões administrativas e o bucket público de fotos. Se configurar outro projeto, execute os arquivos SQL em ordem pelo SQL Editor.
+1. As migrações de `supabase/migrations/` já foram aplicadas ao projeto Supabase **Berit**. Elas configuram categorias, fotos, permissões administrativas e a consulta administrativa a nomes e datas de cadastro dos clientes. Se configurar outro projeto, execute os arquivos SQL em ordem pelo SQL Editor.
 2. A chave **publishable** do projeto Berit já está em `2.0/assets/js/supabase-config.js`. Ela é própria para uso no navegador; nunca coloque uma chave `secret` ou `service_role` no GitHub.
 3. Em **Authentication → URL Configuration**, configure como Site URL o endereço do site publicado e adicione também o endereço de `2.0/views/admin.html` às URLs de redirecionamento permitidas.
 4. Publique os arquivos no GitHub e habilite o GitHub Pages para a branch principal, pasta `/ (root)`. O `index.html` da raiz direciona para a vitrine.

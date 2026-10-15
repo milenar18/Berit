@@ -9,6 +9,8 @@ let mode = 'login';
 let user = null;
 let products = [];
 let categories = [];
+let customers = [];
+let customersError = '';
 let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
@@ -45,6 +47,50 @@ async function loadProducts() {
   products = (productRows || []).map(normalizeProduct);
   categories = (categoryRows || []).map(normalizeCategory);
   return [...CatalogModel.getProducts(), ...products];
+}
+
+async function loadCustomers() {
+  const { data, error } = await supabase.from('profiles').select('id,display_name,created_at').eq('role', 'customer').order('created_at', { ascending: false });
+  if (error) {
+    customers = [];
+    customersError = error.message;
+  } else {
+    customers = data || [];
+    customersError = '';
+  }
+  renderAdminCustomers();
+}
+
+function renderAdminCustomers(query = $('#customerSearch').value) {
+  const normalized = query.trim().toLocaleLowerCase('pt-BR');
+  const visible = customers.filter(customer => !normalized || (customer.display_name || 'Cliente').toLocaleLowerCase('pt-BR').includes(normalized));
+  const list = $('#customerList');
+  const recent = $('#recentCustomers');
+  $('#customerCount').textContent = customers.length;
+  $('#customerListCount').textContent = `${visible.length} ${visible.length === 1 ? 'cliente' : 'clientes'}`;
+  if (customersError) {
+    const errorMarkup = `<p class="rounded-2xl bg-red-50 p-4 text-sm text-red-700">Não foi possível carregar clientes: ${escapeHtml(customersError)}</p>`;
+    list.innerHTML = errorMarkup;
+    recent.innerHTML = errorMarkup;
+    return;
+  }
+  const item = customer => `<article class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-berit-line p-4"><div><strong class="block text-sm">${escapeHtml(customer.display_name || 'Cliente')}</strong><span class="mt-1 block text-xs text-berit-muted">Cadastro em ${new Date(customer.created_at).toLocaleDateString('pt-BR')}</span></div><span class="rounded-full bg-berit-cream px-3 py-1 text-xs font-semibold text-berit-green">Cliente</span></article>`;
+  list.innerHTML = visible.length ? visible.map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Nenhum cliente encontrado.</p>';
+  recent.innerHTML = customers.length ? customers.slice(0, 4).map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há clientes cadastrados.</p>';
+}
+
+function showAdminPanel(panelId) {
+  ['adminOverview', 'adminCustomers', 'adminCatalog'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== panelId));
+  document.querySelectorAll('.admin-tab').forEach(button => {
+    const selected = button.dataset.adminTab === panelId;
+    button.setAttribute('aria-selected', String(selected));
+    button.classList.toggle('bg-berit-green', selected);
+    button.classList.toggle('text-white', selected);
+    button.classList.toggle('border', !selected);
+    button.classList.toggle('border-berit-line', !selected);
+    button.classList.toggle('bg-white', !selected);
+    button.classList.toggle('text-berit-muted', !selected);
+  });
 }
 
 function renderAdminProducts() {
@@ -89,9 +135,12 @@ async function showSignedIn() {
   $('#authPanel').classList.add('hidden');
   await loadProducts();
   if (profileResult.data.role === 'admin') {
+    await loadCustomers();
     $('#customerPanel').classList.add('hidden');
     $('#adminPanel').classList.remove('hidden');
     renderAdminProducts();
+    renderAdminCustomers();
+    showAdminPanel('adminOverview');
   } else {
     $('#adminPanel').classList.add('hidden');
     $('#customerPanel').classList.remove('hidden');
@@ -176,6 +225,11 @@ $('#forgotButton').addEventListener('click', async () => {
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
+$('#customerSearch').addEventListener('input', event => renderAdminCustomers(event.target.value));
+$('#adminPanel').addEventListener('click', event => {
+  const button = event.target.closest('[data-admin-tab]');
+  if (button) showAdminPanel(button.dataset.adminTab);
+});
 
 $('#customerCatalog').addEventListener('click', async event => {
   const button = event.target.closest('.add-to-cart');
