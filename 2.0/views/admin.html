@@ -10,6 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config={theme:{extend:{colors:{berit:{green:'#65763a',dark:'#39452b',cream:'#fafaf7',ink:'#33352d',muted:'#77796f',line:'#e8e9e1'}},fontFamily:{sans:['Inter','sans-serif'],serif:['Poppins','sans-serif']}}}};</script>
+  <style>
+    #adminSidebar{background:#65763a;color:#fff;border-color:rgba(255,255,255,.22)}
+    #adminSidebar .side-heading,#adminSidebar .side-link,#adminSidebar .side-link span,#adminSidebar .close-menu,#adminSidebar .sidebar-bottom,#adminSidebar .sidebar-bottom span{color:#fff}
+    #adminSidebar .side-link{min-height:39px;transition:color .2s,transform .2s,background .2s}
+    #adminSidebar .side-link:hover,#adminSidebar .side-link[aria-selected="true"]{color:#fff;background:rgba(255,255,255,.16);transform:translateX(3px)}
+    #adminSidebar .side-rule{border-color:rgba(255,255,255,.28)}
+    #adminSidebar .side-card{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
+    #adminSidebar .side-card a,#adminSidebar .side-card p{color:#fff}
+  </style>
   <script type="module" src="admin.js"></script>
 </head>
 <body class="min-h-screen bg-berit-cream font-sans text-berit-ink">
@@ -38,18 +47,21 @@
 
     <section id="adminPanel" class="hidden">
       <div class="flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ADMINISTRAÇÃO</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Painel administrativo</h1><p class="mt-2 text-sm text-berit-muted">Gerencie o catálogo, as categorias e as imagens da vitrine.</p></div><button class="logout rounded-full border border-berit-line bg-white px-5 py-3 text-sm font-semibold">Sair</button></div>
-      <button id="adminMenuToggle" type="button" class="mt-6 flex w-full items-center justify-between rounded-2xl border border-berit-line bg-white px-4 py-3 text-sm font-semibold text-berit-green lg:hidden" aria-expanded="false" aria-controls="adminSidebar"><span>☰ Menu administrativo</span><span aria-hidden="true">⌄</span></button>
-      <div class="mt-4 grid gap-6 lg:mt-7 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside id="adminSidebar" class="hidden h-fit rounded-2xl border border-berit-line bg-white p-3 lg:sticky lg:top-6 lg:block" aria-label="Menu administrativo">
-          <p class="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[.18em] text-berit-muted">Menu</p>
+      <button id="adminMenuToggle" type="button" class="menu-toggle mt-6 rounded-full border border-berit-line p-2 text-berit-green lg:hidden" aria-label="Abrir menu administrativo" aria-expanded="false" aria-controls="adminSidebar">☰</button>
+      <div class="relative mx-auto mt-4 flex max-w-5xl gap-6 lg:mt-7">
+        <aside id="adminSidebar" class="sidebar fixed inset-y-0 left-0 z-50 flex w-[290px] -translate-x-full flex-col border-r border-berit-line bg-white px-6 pb-6 pt-8 transition-transform duration-300 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-[250px] lg:shrink-0 lg:translate-x-0" aria-label="Menu administrativo">
+          <div class="side-heading mb-4 flex items-center justify-between text-[11px] font-bold tracking-[.2em]"><span>ADMINISTRAÇÃO</span><button type="button" class="close-menu text-2xl lg:hidden" id="adminMenuClose" aria-label="Fechar menu">×</button></div>
           <nav class="space-y-1" role="tablist" aria-label="Seções administrativas">
-            <button type="button" class="admin-tab flex w-full items-center gap-3 rounded-xl bg-berit-green px-3 py-3 text-left text-sm font-semibold text-white" data-admin-tab="adminOverview" role="tab" aria-selected="true"><span class="w-5 text-center" aria-hidden="true">⌂</span>Visão geral</button>
-            <button type="button" class="admin-tab flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-berit-muted hover:bg-berit-cream hover:text-berit-green" data-admin-tab="adminCustomers" role="tab" aria-selected="false"><span class="w-5 text-center" aria-hidden="true">♙</span>Clientes</button>
-            <button type="button" class="admin-tab flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-berit-muted hover:bg-berit-cream hover:text-berit-green" data-admin-tab="adminCategories" role="tab" aria-selected="false"><span class="w-5 text-center" aria-hidden="true">◈</span>Categorias</button>
-            <button type="button" class="admin-tab flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left text-sm font-semibold text-berit-muted hover:bg-berit-cream hover:text-berit-green" data-admin-tab="adminProducts" role="tab" aria-selected="false"><span class="w-5 text-center" aria-hidden="true">▣</span>Produtos</button>
+            <button type="button" class="side-link admin-tab mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold" data-admin-tab="adminOverview" role="tab" aria-selected="true"><span>⌂</span> Visão geral</button>
+            <button type="button" class="side-link admin-tab mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminCustomers" role="tab" aria-selected="false"><span>♙</span> Clientes</button>
+            <button type="button" class="side-link admin-tab mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminCategories" role="tab" aria-selected="false"><span>◈</span> Categorias</button>
+            <button type="button" class="side-link admin-tab mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminProducts" role="tab" aria-selected="false"><span>▣</span> Produtos</button>
           </nav>
+          <div class="side-card mt-8 rounded-2xl p-5"><span class="text-lg text-white">✦</span><h3 class="mt-2 font-serif text-lg">Vitrine Berit</h3><p class="mt-2 text-xs leading-relaxed">Acesse a página pública para conferir as mudanças no catálogo.</p><a class="mt-4 inline-flex items-center gap-2 text-xs font-bold" href="home.html">Abrir catálogo <span>→</span></a></div>
+          <div class="sidebar-bottom mt-auto pt-8 text-xs font-semibold">Berit Brindes & Presentes<br><span class="font-normal">Feito com carinho para você.</span></div>
         </aside>
-        <div class="min-w-0">
+        <div id="adminScrim" class="fixed inset-0 z-40 hidden bg-black/40 backdrop-blur-[2px]" aria-hidden="true"></div>
+        <div class="min-w-0 flex-1">
 
       <section id="adminOverview" class="mt-0" role="tabpanel">
         <div class="grid gap-4 sm:grid-cols-3">

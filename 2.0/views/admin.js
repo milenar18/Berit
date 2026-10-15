@@ -92,8 +92,13 @@ function showAdminPanel(panelId) {
     button.classList.toggle('hover:bg-berit-cream', !selected);
     button.classList.toggle('hover:text-berit-green', !selected);
   });
-  $('#adminSidebar').classList.add('hidden');
-  $('#adminMenuToggle').setAttribute('aria-expanded', 'false');
+  setAdminSidebarOpen(false);
+}
+
+function setAdminSidebarOpen(open) {
+  $('#adminSidebar').classList.toggle('-translate-x-full', !open);
+  $('#adminScrim').classList.toggle('hidden', !open);
+  $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
 }
 
 function renderAdminProducts() {
@@ -229,10 +234,9 @@ $('#forgotButton').addEventListener('click', async () => {
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
 $('#customerSearch').addEventListener('input', event => renderAdminCustomers(event.target.value));
-$('#adminMenuToggle').addEventListener('click', () => {
-  const open = $('#adminSidebar').classList.toggle('hidden') === false;
-  $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
-});
+$('#adminMenuToggle').addEventListener('click', () => setAdminSidebarOpen($('#adminSidebar').classList.contains('-translate-x-full')));
+$('#adminMenuClose').addEventListener('click', () => setAdminSidebarOpen(false));
+$('#adminScrim').addEventListener('click', () => setAdminSidebarOpen(false));
 $('#adminPanel').addEventListener('click', event => {
   const button = event.target.closest('[data-admin-tab]');
   if (button) showAdminPanel(button.dataset.adminTab);
