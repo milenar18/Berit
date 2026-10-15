@@ -1,0 +1,14 @@
+# Local secrets and environment-specific settings
+.env
+.env.*
+!.env.example
+supabase/.temp/
+
+# Local tooling output
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/

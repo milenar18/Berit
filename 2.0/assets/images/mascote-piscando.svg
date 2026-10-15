@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none" aria-hidden="true">
+  <ellipse cx="200" cy="360" rx="110" ry="14" fill="#4F5B2A" opacity="0.08"/>
+  <path d="M305 220 Q360 200 340 260 Q330 290 300 275 Z" fill="#3f5426"/>
+  <ellipse cx="200" cy="240" rx="110" ry="115" fill="#4F5B2A"/>
+  <ellipse cx="200" cy="265" rx="72" ry="85" fill="#F5EFE3"/>
+  <path d="M105 230 Q85 280 130 315 Q160 335 175 300 Q150 260 105 230 Z" fill="#3f5426"/>
+  <path d="M295 230 Q315 280 270 315 Q240 335 225 300 Q250 260 295 230 Z" fill="#3f5426"/>
+  <circle cx="200" cy="130" r="90" fill="#4F5B2A"/>
+  <ellipse cx="200" cy="155" rx="62" ry="55" fill="#F5EFE3"/>
+  <path d="M200 42 Q210 20 235 25 Q225 45 210 50 Q230 45 240 60 Q215 68 200 55 Q185 68 160 60 Q170 45 190 50 Q175 45 165 25 Q190 20 200 42 Z" fill="#5f7034"/>
+  <ellipse cx="155" cy="170" rx="14" ry="9" fill="#B8892D" opacity="0.35"/>
+  <ellipse cx="245" cy="170" rx="14" ry="9" fill="#B8892D" opacity="0.35"/>
+  <path d="M200 165 L188 185 L200 195 L212 185 Z" fill="#B8892D"/>
+  <path d="M200 165 L188 185 L200 190 Z" fill="#9a7024"/>
+  <path d="M170 348 L165 360 L155 358 L163 348 Z" fill="#B8892D"/>
+  <path d="M230 348 L235 360 L245 358 L237 348 Z" fill="#B8892D"/>
+  <g transform="translate(280 275) rotate(12)">
+    <rect x="0" y="10" width="52" height="42" rx="5" fill="#B8892D"/>
+    <rect x="0" y="10" width="52" height="14" fill="#9a7024"/>
+    <rect x="22" y="0" width="8" height="52" fill="#F5EFE3"/>
+    <rect x="0" y="26" width="52" height="6" fill="#F5EFE3"/>
+    <path d="M26 0 Q18 -8 12 0 Q18 4 26 0 Z" fill="#4F5B2A"/>
+    <path d="M26 0 Q34 -8 40 0 Q34 4 26 0 Z" fill="#4F5B2A"/>
+  </g>
+  <g>
+    <circle cx="178" cy="140" r="11" fill="#292929"/>
+    <circle cx="181" cy="136" r="4" fill="#ffffff"/>
+    <rect x="164" y="128" width="28" height="0" fill="#4F5B2A">
+      <animate attributeName="height" values="0;0;24;0;0" keyTimes="0;0.9;0.93;0.96;1" dur="6s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+  <g>
+    <circle cx="222" cy="140" r="11" fill="#292929"/>
+    <circle cx="225" cy="136" r="4" fill="#ffffff"/>
+    <rect x="208" y="128" width="28" height="0" fill="#4F5B2A">
+      <animate attributeName="height" values="0;0;24;0;0" keyTimes="0;0.9;0.93;0.96;1" dur="6s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>
