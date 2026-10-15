@@ -14,7 +14,6 @@ let customersError = '';
 let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
-let adminSearchQuery = '';
 let productSearchQuery = '';
 
 function message(element, text, error = false) {
@@ -65,9 +64,8 @@ async function loadCustomers() {
   renderAdminCustomers();
 }
 
-function renderAdminCustomers(query = adminSearchQuery) {
-  const normalized = query.trim().toLocaleLowerCase('pt-BR');
-  const visible = customers.filter(customer => !normalized || (customer.display_name || 'Cliente').toLocaleLowerCase('pt-BR').includes(normalized));
+function renderAdminCustomers() {
+  const visible = customers;
   const list = $('#customerList');
   const recent = $('#recentCustomers');
   $('#customerCount').textContent = customers.length;
@@ -103,18 +101,17 @@ function setAdminSidebarOpen(open) {
   $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
 }
 
-function renderAdminProducts(query = adminSearchQuery) {
-  const normalized = query.trim().toLocaleLowerCase('pt-BR');
+function renderAdminProducts() {
   const productNormalized = productSearchQuery.trim().toLocaleLowerCase('pt-BR');
   const visibleProducts = products.filter(item => {
     const searchable = `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR');
-    return (!normalized || searchable.includes(normalized)) && (!productNormalized || searchable.includes(productNormalized));
+    return !productNormalized || searchable.includes(productNormalized);
   });
-  const visibleCategories = categories.filter(item => !normalized || `${item.name} ${item.note}`.toLocaleLowerCase('pt-BR').includes(normalized));
+  const visibleCategories = categories;
   $('#productCategory').innerHTML = categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
   $('#categoryProductCount').textContent = `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`;
   $('#productCount').textContent = `${products.length} ${products.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}`;
-  const hasProductSearch = Boolean(normalized || productNormalized);
+  const hasProductSearch = Boolean(productNormalized);
   $('#productsSummary').textContent = hasProductSearch
     ? `${visibleProducts.length} de ${products.length} ${products.length === 1 ? 'produto' : 'produtos'}`
     : $('#productCount').textContent;
@@ -162,7 +159,6 @@ async function showSignedIn() {
   if (profileResult.error) throw profileResult.error;
   $('#authPanel').classList.add('hidden');
   const isAdmin = profileResult.data.role === 'admin';
-  $('#adminSearchWrap').classList.toggle('hidden', !isAdmin);
   $('#adminHeaderActions').classList.toggle('hidden', !isAdmin);
   $('#adminHeaderActions').classList.toggle('flex', isAdmin);
   $('#accountBackLink').classList.toggle('hidden', isAdmin);
@@ -187,7 +183,6 @@ function showAuth() {
   $('#authPanel').classList.remove('hidden');
   $('#adminPanel').classList.add('hidden');
   $('#customerPanel').classList.add('hidden');
-  $('#adminSearchWrap').classList.add('hidden');
   $('#adminHeaderActions').classList.add('hidden');
   $('#adminHeaderActions').classList.remove('flex');
   $('#accountBackLink').classList.remove('hidden');
@@ -262,11 +257,6 @@ $('#forgotButton').addEventListener('click', async () => {
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
-$('#adminSearch').addEventListener('input', event => {
-  adminSearchQuery = event.target.value;
-  renderAdminProducts(adminSearchQuery);
-  renderAdminCustomers(adminSearchQuery);
-});
 $('#productSearch').addEventListener('input', event => {
   productSearchQuery = event.target.value;
   renderAdminProducts();
