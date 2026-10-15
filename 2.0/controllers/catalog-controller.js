@@ -21,7 +21,7 @@ const controller = (() => {
     let name = user.user_metadata?.name || user.user_metadata?.full_name;
     const { data } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
     if (version !== accountRenderVersion) return;
-    name = data?.display_name || name || user.email?.split('@')[0] || 'Minha conta';
+    name = (data?.display_name || name || user.email?.split('@')[0] || 'Minha conta').trim().split(/\s+/)[0];
     label.textContent = `Olá, ${name}`;
     link.setAttribute('aria-label', `Abrir conta de ${name}`);
   }
