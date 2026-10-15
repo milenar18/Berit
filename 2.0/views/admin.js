@@ -88,11 +88,12 @@ function showAdminPanel(panelId) {
     button.setAttribute('aria-selected', String(selected));
     button.classList.toggle('bg-berit-green', selected);
     button.classList.toggle('text-white', selected);
-    button.classList.toggle('border', !selected);
-    button.classList.toggle('border-berit-line', !selected);
-    button.classList.toggle('bg-white', !selected);
     button.classList.toggle('text-berit-muted', !selected);
+    button.classList.toggle('hover:bg-berit-cream', !selected);
+    button.classList.toggle('hover:text-berit-green', !selected);
   });
+  $('#adminSidebar').classList.add('hidden');
+  $('#adminMenuToggle').setAttribute('aria-expanded', 'false');
 }
 
 function renderAdminProducts() {
@@ -228,6 +229,10 @@ $('#forgotButton').addEventListener('click', async () => {
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
 $('#customerSearch').addEventListener('input', event => renderAdminCustomers(event.target.value));
+$('#adminMenuToggle').addEventListener('click', () => {
+  const open = $('#adminSidebar').classList.toggle('hidden') === false;
+  $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
+});
 $('#adminPanel').addEventListener('click', event => {
   const button = event.target.closest('[data-admin-tab]');
   if (button) showAdminPanel(button.dataset.adminTab);
