@@ -5,8 +5,27 @@ import { supabase, imageUrl } from '../assets/js/supabase-client.js';
 
 const controller = (() => {
   const state = { category: 'Todos', query: '', sort: 'featured' };
+  let accountRenderVersion = 0;
 
   function render() { view.renderProducts(model.getProducts(state)); }
+  async function renderAccountLink(user) {
+    const version = ++accountRenderVersion;
+    const link = document.querySelector('#accountLink');
+    const label = document.querySelector('#accountLinkLabel');
+    if (!user) {
+      label.textContent = 'Entrar';
+      link.setAttribute('aria-label', 'Entrar na área da conta');
+      return;
+    }
+
+    let name = user.user_metadata?.name || user.user_metadata?.full_name;
+    const { data } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+    if (version !== accountRenderVersion) return;
+    name = data?.display_name || name || user.email?.split('@')[0] || 'Minha conta';
+    label.textContent = `Olá, ${name}`;
+    link.setAttribute('aria-label', `Abrir conta de ${name}`);
+  }
+
   function setCategory(category) {
     state.category = category;
     view.renderSelectedCategory(category);
@@ -16,6 +35,11 @@ const controller = (() => {
   }
 
   function initialize() {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
+        queueMicrotask(() => renderAccountLink(session?.user || null));
+      }
+    });
     view.renderCategories(model.getCategories(), state.category);
     render();
     Promise.all([
