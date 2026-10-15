@@ -14,12 +14,17 @@ function message(element, text, error = false) {
 }
 
 function renderAuth() {
+  const registering = mode === 'register';
   const recovery = mode === 'recovery';
-  $('#authTitle').textContent = recovery ? 'Escolha uma nova senha' : 'Entre na sua conta';
-  $('#authIntro').textContent = recovery ? 'Defina uma nova senha para sua conta.' : 'Acesso restrito a contas autorizadas.';
-  $('#passwordHint').textContent = recovery ? 'Use pelo menos 8 caracteres.' : '';
-  $('#authSubmit').textContent = recovery ? 'Salvar nova senha' : 'Entrar';
-  $('#forgotButton').classList.toggle('hidden', recovery);
+  $('#authTitle').textContent = recovery ? 'Escolha uma nova senha' : registering ? 'Criar conta' : 'Entre na sua conta';
+  $('#authIntro').textContent = recovery ? 'Defina uma nova senha para sua conta.' : registering ? 'Crie sua conta para salvar seu carrinho.' : 'Entre para acessar seu carrinho ou administrar o catálogo.';
+  $('#nameWrap').classList.toggle('hidden', !registering);
+  $('#name').required = registering;
+  $('#passwordHint').textContent = registering || recovery ? 'Use pelo menos 8 caracteres.' : '';
+  $('#authSubmit').textContent = recovery ? 'Salvar nova senha' : registering ? 'Criar conta' : 'Entrar';
+  $('#modeToggle').classList.toggle('hidden', recovery);
+  $('#modeToggle').textContent = registering ? 'Já tem conta? Entrar' : 'Ainda não tem conta? Cadastre-se';
+  $('#forgotButton').classList.toggle('hidden', registering || recovery);
 }
 
 function normalizeProduct(row) {
@@ -88,6 +93,7 @@ function showAuth() {
   $('#customerPanel').classList.add('hidden');
 }
 
+$('#modeToggle').addEventListener('click', () => { mode = mode === 'login' ? 'register' : 'login'; message($('#authMessage'), ''); renderAuth(); });
 $('#authForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!isConfigured()) return message($('#authMessage'), 'Adicione a chave publishable do Supabase em assets/js/supabase-config.js.', true);
@@ -102,6 +108,10 @@ $('#authForm').addEventListener('submit', async event => {
       await supabase.auth.signOut();
       renderAuth();
       return message($('#authMessage'), 'Senha atualizada. Entre com a nova senha.');
+    } else if (mode === 'register') {
+      result = await supabase.auth.signUp({ email, password, options: { data: { name: $('#name').value.trim() } } });
+      if (result.error) throw result.error;
+      if (!result.data.session) return message($('#authMessage'), 'Cadastro iniciado. Confirme o link enviado ao seu e-mail e depois entre.');
     } else {
       result = await supabase.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;

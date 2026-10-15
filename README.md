@@ -8,7 +8,7 @@ Vitrine estática publicada no GitHub Pages, com login, catálogo administrável
 2. A chave **publishable** do projeto Berit já está em `2.0/assets/js/supabase-config.js`. Ela é própria para uso no navegador; nunca coloque uma chave `secret` ou `service_role` no GitHub.
 3. Em **Authentication → URL Configuration**, configure como Site URL o endereço do site publicado e adicione também o endereço de `2.0/views/admin.html` às URLs de redirecionamento permitidas.
 4. Publique os arquivos no GitHub e habilite o GitHub Pages para a branch principal, pasta `/ (root)`. O `index.html` da raiz direciona para a vitrine.
-5. Para impedir cadastros públicos, desative **Allow new users to sign up** em **Authentication → Settings → User Signups**. Crie a conta administrativa em **Authentication → Users → Add user**. O perfil é criado automaticamente; para promovê-lo, execute no SQL Editor, substituindo o endereço:
+5. Para permitir que clientes se cadastrem, mantenha habilitada a opção **Allow new users to sign up** em **Authentication → Settings → User Signups**. Cadastros feitos pelo site recebem o papel `customer` automaticamente; eles não podem administrar o catálogo. Para promover uma conta confiável a administradora, execute no SQL Editor, substituindo o endereço:
 
 ```sql
 update public.profiles

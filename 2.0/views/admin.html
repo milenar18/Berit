@@ -20,11 +20,13 @@
       <h1 id="authTitle" class="mt-3 font-serif text-3xl">Entre na sua conta</h1>
       <p id="authIntro" class="mt-2 text-sm leading-6 text-berit-muted">Entre para acessar seu carrinho ou administrar o catálogo.</p>
       <form id="authForm" class="mt-6 space-y-4">
+        <label id="nameWrap" class="hidden block text-sm font-semibold">Nome completo<input id="name" maxlength="80" autocomplete="name" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
         <label class="block text-sm font-semibold">E-mail<input id="email" type="email" required maxlength="160" autocomplete="email" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
         <label class="block text-sm font-semibold">Senha<input id="password" type="password" required minlength="8" autocomplete="current-password" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"><span id="passwordHint" class="mt-2 block text-xs font-normal text-berit-muted">Use pelo menos 8 caracteres.</span></label>
         <p id="authMessage" class="text-sm" role="status" aria-live="polite"></p>
         <button id="authSubmit" class="w-full rounded-full bg-berit-green px-5 py-3 font-bold text-white hover:bg-berit-dark">Entrar</button>
       </form>
+      <button id="modeToggle" type="button" class="mt-4 w-full text-sm font-semibold text-berit-green underline">Ainda não tem conta? Cadastre-se</button>
       <button id="forgotButton" type="button" class="mt-3 w-full text-sm font-semibold text-berit-muted underline">Esqueci minha senha</button>
     </section>
 
