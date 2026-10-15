@@ -82,7 +82,7 @@ function renderAdminCustomers(query = $('#customerSearch').value) {
 }
 
 function showAdminPanel(panelId) {
-  ['adminOverview', 'adminCustomers', 'adminCatalog'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== panelId));
+  ['adminOverview', 'adminCustomers', 'adminCategories', 'adminProducts'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== panelId));
   document.querySelectorAll('.admin-tab').forEach(button => {
     const selected = button.dataset.adminTab === panelId;
     button.setAttribute('aria-selected', String(selected));
