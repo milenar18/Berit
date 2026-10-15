@@ -22,8 +22,19 @@
   <script type="module" src="admin.js"></script>
 </head>
 <body class="min-h-screen bg-berit-cream font-sans text-berit-ink">
-  <header class="border-b border-berit-line bg-white"><div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><a href="home.html" class="font-serif text-xl font-semibold text-berit-green">Berit <span class="font-sans text-sm font-normal text-berit-muted">/ Minha conta</span></a><a href="home.html" class="text-sm font-semibold text-berit-green">Voltar ao catálogo ↗</a></div></header>
-  <main class="mx-auto max-w-5xl px-5 py-10">
+  <header class="sticky top-0 z-30 border-b border-berit-line bg-white/95 backdrop-blur">
+    <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-4 px-4 py-3 sm:px-8 lg:flex-nowrap lg:px-12">
+      <button id="adminMenuToggle" type="button" class="menu-toggle rounded-full border border-berit-line p-2 text-berit-green lg:hidden" aria-label="Abrir menu administrativo" aria-expanded="false" aria-controls="adminSidebar">☰</button>
+      <a href="home.html" class="shrink-0" aria-label="Berit — página inicial"><img class="h-9 w-auto object-contain sm:h-11 lg:h-12" src="../assets/images/Logotipo_nome.png" alt="Berit Brindes & Presentes"></a>
+      <label id="adminSearchWrap" class="hidden order-3 flex h-11 w-full items-center rounded-full border border-berit-line bg-berit-cream px-4 focus-within:border-berit-green lg:order-none lg:mx-auto lg:max-w-md"><input id="adminSearch" type="search" placeholder="Buscar produtos, categorias ou clientes" aria-label="Buscar no painel administrativo" class="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-berit-muted"><span class="px-1 text-xl text-berit-green" aria-hidden="true">⌕</span></label>
+      <a id="accountBackLink" href="home.html" class="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-berit-line bg-white px-4 py-3 text-xs font-bold text-berit-green transition hover:border-berit-green sm:px-5 sm:text-sm">Voltar ao catálogo <span aria-hidden="true">↗</span></a>
+      <div id="adminHeaderActions" class="ml-auto hidden shrink-0 items-center gap-3">
+        <a href="home.html" class="inline-flex items-center gap-2 rounded-full border border-berit-line bg-white px-4 py-3 text-xs font-bold text-berit-green transition hover:border-berit-green sm:px-5 sm:text-sm">Ver vitrine <span aria-hidden="true">↗</span></a>
+        <button class="logout rounded-full bg-berit-green px-5 py-3 text-xs font-bold text-white transition hover:bg-berit-dark sm:text-sm">Sair</button>
+      </div>
+    </div>
+  </header>
+  <main class="mx-auto max-w-[1440px] px-4 py-8 sm:px-8 lg:px-12">
     <section id="authPanel" class="mx-auto max-w-md rounded-3xl border border-berit-line bg-white p-7 shadow-sm sm:p-9">
       <span class="text-xs font-bold tracking-[.18em] text-berit-green">ACESSO À CONTA</span>
       <h1 id="authTitle" class="mt-3 font-serif text-3xl">Entre na sua conta</h1>
@@ -46,9 +57,7 @@
     </section>
 
     <section id="adminPanel" class="hidden">
-      <div class="flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ADMINISTRAÇÃO</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Painel administrativo</h1><p class="mt-2 text-sm text-berit-muted">Gerencie o catálogo, as categorias e as imagens da vitrine.</p></div><button class="logout rounded-full border border-berit-line bg-white px-5 py-3 text-sm font-semibold">Sair</button></div>
-      <button id="adminMenuToggle" type="button" class="menu-toggle mt-6 rounded-full border border-berit-line p-2 text-berit-green lg:hidden" aria-label="Abrir menu administrativo" aria-expanded="false" aria-controls="adminSidebar">☰</button>
-      <div class="relative mx-auto mt-4 flex max-w-5xl gap-6 lg:mt-7">
+      <div class="relative mx-auto flex w-full gap-6">
         <aside id="adminSidebar" class="sidebar fixed inset-y-0 left-0 z-50 flex w-[290px] -translate-x-full flex-col border-r border-berit-line bg-white px-6 pb-6 pt-8 transition-transform duration-300 lg:sticky lg:top-[72px] lg:h-[calc(100vh-72px)] lg:w-[250px] lg:shrink-0 lg:translate-x-0" aria-label="Menu administrativo">
           <div class="side-heading mb-4 flex items-center justify-between text-[11px] font-bold tracking-[.2em]"><span>ADMINISTRAÇÃO</span><button type="button" class="close-menu text-2xl lg:hidden" id="adminMenuClose" aria-label="Fechar menu">×</button></div>
           <nav class="space-y-1" role="tablist" aria-label="Seções administrativas">
@@ -62,8 +71,9 @@
         </aside>
         <div id="adminScrim" class="fixed inset-0 z-40 hidden bg-black/40 backdrop-blur-[2px]" aria-hidden="true"></div>
         <div class="min-w-0 flex-1">
+      <div class="mb-7 flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ADMINISTRAÇÃO</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Painel administrativo</h1><p class="mt-2 text-sm text-berit-muted">Gerencie o catálogo, as categorias e as imagens da vitrine.</p></div></div>
 
-      <section id="adminOverview" class="mt-0" role="tabpanel">
+      <section id="adminOverview" role="tabpanel">
         <div class="grid gap-4 sm:grid-cols-3">
           <article class="rounded-2xl border border-berit-line bg-white p-5"><span class="text-xs font-semibold uppercase tracking-widest text-berit-muted">Produtos</span><strong id="productCount" class="mt-2 block font-serif text-2xl">0 produtos cadastrados</strong></article>
           <article class="rounded-2xl border border-berit-line bg-white p-5"><span class="text-xs font-semibold uppercase tracking-widest text-berit-muted">Categorias</span><strong id="categoryCount" class="mt-2 block font-serif text-2xl">0</strong></article>
@@ -74,7 +84,7 @@
       </section>
 
       <section id="adminCustomers" class="mt-0 hidden" role="tabpanel">
-        <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Relacionamento</span><h2 class="mt-2 font-serif text-3xl">Clientes</h2><p class="mt-1 text-sm text-berit-muted">Contas criadas no site e data de cadastro.</p></div><input id="customerSearch" type="search" placeholder="Buscar pelo nome" aria-label="Buscar cliente pelo nome" class="rounded-full border border-berit-line bg-white px-4 py-2 text-sm outline-none focus:border-berit-green"></div>
+        <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Relacionamento</span><h2 class="mt-2 font-serif text-3xl">Clientes</h2><p class="mt-1 text-sm text-berit-muted">Contas criadas no site e data de cadastro.</p></div></div>
         <div class="mt-6 rounded-3xl border border-berit-line bg-white p-6 sm:p-8"><div class="flex items-center justify-between"><h3 class="font-serif text-xl">Lista de clientes</h3><span id="customerListCount" class="text-sm text-berit-muted"></span></div><div id="customerList" class="mt-4 space-y-3"></div></div>
       </section>
 

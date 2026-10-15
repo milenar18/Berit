@@ -14,6 +14,7 @@ let customersError = '';
 let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
+let adminSearchQuery = '';
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -63,7 +64,7 @@ async function loadCustomers() {
   renderAdminCustomers();
 }
 
-function renderAdminCustomers(query = $('#customerSearch').value) {
+function renderAdminCustomers(query = adminSearchQuery) {
   const normalized = query.trim().toLocaleLowerCase('pt-BR');
   const visible = customers.filter(customer => !normalized || (customer.display_name || 'Cliente').toLocaleLowerCase('pt-BR').includes(normalized));
   const list = $('#customerList');
@@ -101,14 +102,17 @@ function setAdminSidebarOpen(open) {
   $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
 }
 
-function renderAdminProducts() {
+function renderAdminProducts(query = adminSearchQuery) {
+  const normalized = query.trim().toLocaleLowerCase('pt-BR');
+  const visibleProducts = products.filter(item => !normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized));
+  const visibleCategories = categories.filter(item => !normalized || `${item.name} ${item.note}`.toLocaleLowerCase('pt-BR').includes(normalized));
   $('#productCategory').innerHTML = categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
   $('#categoryProductCount').textContent = `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`;
   $('#productCount').textContent = `${products.length} ${products.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}`;
   $('#productsSummary').textContent = $('#productCount').textContent;
   $('#categoryCount').textContent = categories.length;
-  $('#customProducts').innerHTML = products.length ? products.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há produtos cadastrados.</p>';
-  $('#customCategories').innerHTML = categories.length ? categories.map(category => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(category.image || '../assets/images/Caneca.jpeg')}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(category.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(category.note || 'Sem descrição')}</span></div><button class="edit-category rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-name="${escapeHtml(category.name)}">Editar</button><button class="delete-category rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-name="${escapeHtml(category.name)}">Excluir</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Cadastre sua primeira categoria.</p>';
+  $('#customProducts').innerHTML = visibleProducts.length ? visibleProducts.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">${products.length ? 'Nenhum produto corresponde à busca.' : 'Ainda não há produtos cadastrados.'}</p>`;
+  $('#customCategories').innerHTML = visibleCategories.length ? visibleCategories.map(category => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(category.image || '../assets/images/Caneca.jpeg')}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(category.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(category.note || 'Sem descrição')}</span></div><button class="edit-category rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-name="${escapeHtml(category.name)}">Editar</button><button class="delete-category rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-name="${escapeHtml(category.name)}">Excluir</button></article>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">${categories.length ? 'Nenhuma categoria corresponde à busca.' : 'Cadastre sua primeira categoria.'}</p>`;
 }
 
 function renderCustomerCatalog(query = '') {
@@ -141,8 +145,13 @@ async function showSignedIn() {
   const profileResult = await supabase.from('profiles').select('display_name,role').eq('id', user.id).single();
   if (profileResult.error) throw profileResult.error;
   $('#authPanel').classList.add('hidden');
+  const isAdmin = profileResult.data.role === 'admin';
+  $('#adminSearchWrap').classList.toggle('hidden', !isAdmin);
+  $('#adminHeaderActions').classList.toggle('hidden', !isAdmin);
+  $('#adminHeaderActions').classList.toggle('flex', isAdmin);
+  $('#accountBackLink').classList.toggle('hidden', isAdmin);
   await loadProducts();
-  if (profileResult.data.role === 'admin') {
+  if (isAdmin) {
     await loadCustomers();
     $('#customerPanel').classList.add('hidden');
     $('#adminPanel').classList.remove('hidden');
@@ -162,6 +171,10 @@ function showAuth() {
   $('#authPanel').classList.remove('hidden');
   $('#adminPanel').classList.add('hidden');
   $('#customerPanel').classList.add('hidden');
+  $('#adminSearchWrap').classList.add('hidden');
+  $('#adminHeaderActions').classList.add('hidden');
+  $('#adminHeaderActions').classList.remove('flex');
+  $('#accountBackLink').classList.remove('hidden');
 }
 
 function imageFileError(file) {
@@ -233,7 +246,11 @@ $('#forgotButton').addEventListener('click', async () => {
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
-$('#customerSearch').addEventListener('input', event => renderAdminCustomers(event.target.value));
+$('#adminSearch').addEventListener('input', event => {
+  adminSearchQuery = event.target.value;
+  renderAdminProducts(adminSearchQuery);
+  renderAdminCustomers(adminSearchQuery);
+});
 $('#adminMenuToggle').addEventListener('click', () => setAdminSidebarOpen($('#adminSidebar').classList.contains('-translate-x-full')));
 $('#adminMenuClose').addEventListener('click', () => setAdminSidebarOpen(false));
 $('#adminScrim').addEventListener('click', () => setAdminSidebarOpen(false));
