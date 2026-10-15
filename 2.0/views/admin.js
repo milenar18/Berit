@@ -15,6 +15,7 @@ let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
 let adminSearchQuery = '';
+let productSearchQuery = '';
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -104,12 +105,19 @@ function setAdminSidebarOpen(open) {
 
 function renderAdminProducts(query = adminSearchQuery) {
   const normalized = query.trim().toLocaleLowerCase('pt-BR');
-  const visibleProducts = products.filter(item => !normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized));
+  const productNormalized = productSearchQuery.trim().toLocaleLowerCase('pt-BR');
+  const visibleProducts = products.filter(item => {
+    const searchable = `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR');
+    return (!normalized || searchable.includes(normalized)) && (!productNormalized || searchable.includes(productNormalized));
+  });
   const visibleCategories = categories.filter(item => !normalized || `${item.name} ${item.note}`.toLocaleLowerCase('pt-BR').includes(normalized));
   $('#productCategory').innerHTML = categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
   $('#categoryProductCount').textContent = `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`;
   $('#productCount').textContent = `${products.length} ${products.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}`;
-  $('#productsSummary').textContent = $('#productCount').textContent;
+  const hasProductSearch = Boolean(normalized || productNormalized);
+  $('#productsSummary').textContent = hasProductSearch
+    ? `${visibleProducts.length} de ${products.length} ${products.length === 1 ? 'produto' : 'produtos'}`
+    : $('#productCount').textContent;
   $('#categoryCount').textContent = categories.length;
   const productCard = item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.detail)}</span></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`;
   const groupedProducts = categories.map(category => ({
@@ -258,6 +266,10 @@ $('#adminSearch').addEventListener('input', event => {
   adminSearchQuery = event.target.value;
   renderAdminProducts(adminSearchQuery);
   renderAdminCustomers(adminSearchQuery);
+});
+$('#productSearch').addEventListener('input', event => {
+  productSearchQuery = event.target.value;
+  renderAdminProducts();
 });
 $('#adminMenuToggle').addEventListener('click', () => setAdminSidebarOpen($('#adminSidebar').classList.contains('-translate-x-full')));
 $('#adminMenuClose').addEventListener('click', () => setAdminSidebarOpen(false));
