@@ -22,9 +22,11 @@ export const CatalogModel = (() => {
     { id: 'demo-quebra-cabeca-hulk', name: 'Quebra-cabeça Hulk', category: 'Quebra-cabeças', image: '../assets/images/Quebra-cabeça hulk.png', detail: 'Diversão garantida para fãs e colecionadores.' }
   ];
   let remoteProducts = [];
+  let remoteCategories = [];
+  let remoteCategoriesLoaded = false;
   function getCategories() {
-    const result = categories.map(category => ({ ...category }));
-    for (const product of [...products, ...remoteProducts]) {
+    const result = (remoteCategoriesLoaded ? remoteCategories : categories).map(category => ({ ...category }));
+    for (const product of [...(remoteCategoriesLoaded ? [] : products), ...remoteProducts]) {
       if (!result.some(category => category.name === product.category)) {
         result.push({ name: product.category, label: product.category, image: product.image, note: 'Novidades personalizadas' });
       }
@@ -43,5 +45,6 @@ export const CatalogModel = (() => {
   }
 
   function setProducts(items) { remoteProducts = Array.isArray(items) ? items.map(item => ({ ...item })) : []; }
-  return Object.freeze({ getCategories, getProducts, setProducts });
+  function setCategories(items) { remoteCategories = Array.isArray(items) ? items.map(item => ({ ...item })) : []; remoteCategoriesLoaded = true; }
+  return Object.freeze({ getCategories, getProducts, setProducts, setCategories });
 })();

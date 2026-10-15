@@ -18,13 +18,19 @@ const controller = (() => {
   function initialize() {
     view.renderCategories(model.getCategories(), state.category);
     render();
-    supabase.from('products').select('id,name,category,detail,image_path').order('created_at').then(({ data, error }) => {
-      if (error) throw error;
-      const savedProducts = (data || []).map(item => ({ ...item, image: imageUrl(item.image_path) }));
+    Promise.all([
+      supabase.from('products').select('id,name,category,detail,image_path').order('created_at'),
+      supabase.from('categories').select('name,note,image_path').order('created_at')
+    ]).then(([productResult, categoryResult]) => {
+      if (productResult.error) throw productResult.error;
+      if (categoryResult.error) throw categoryResult.error;
+      const savedProducts = (productResult.data || []).map(item => ({ ...item, image: imageUrl(item.image_path) }));
+      const savedCategories = (categoryResult.data || []).map(item => ({ ...item, image: item.image_path ? imageUrl(item.image_path, 'category-images') : '' }));
       model.setProducts(savedProducts);
+      model.setCategories(savedCategories);
       view.renderCategories(model.getCategories(), state.category);
       render();
-    }).catch(error => console.warn('Não foi possível carregar produtos adicionais do Supabase.', error.message));
+    }).catch(error => console.warn('Não foi possível carregar os dados adicionais do catálogo.', error.message));
     document.querySelector('#searchInput').addEventListener('input', event => { state.query = event.target.value; render(); });
     document.querySelector('#searchForm').addEventListener('submit', event => { event.preventDefault(); document.querySelector('#catalogo').scrollIntoView({ behavior: 'smooth' }); });
     document.querySelector('#sortSelect').addEventListener('change', event => { state.sort = event.target.value; render(); });

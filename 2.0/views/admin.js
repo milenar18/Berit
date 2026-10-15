@@ -2,11 +2,16 @@ import { supabase, isConfigured, imageUrl } from '../assets/js/supabase-client.j
 import { CatalogModel } from '../models/catalog-model.js';
 
 const $ = selector => document.querySelector(selector);
-const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const maxImageSize = 5 * 1024 * 1024;
 let mode = 'login';
 let user = null;
 let products = [];
+let categories = [];
 let cartItems = [];
+let editingProductId = null;
+let editingCategoryName = null;
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -27,20 +32,29 @@ function renderAuth() {
   $('#forgotButton').classList.toggle('hidden', registering || recovery);
 }
 
-function normalizeProduct(row) {
-  return { ...row, image: imageUrl(row.image_path) };
-}
+function normalizeProduct(row) { return { ...row, image: imageUrl(row.image_path) }; }
+function normalizeCategory(row) { return { ...row, image: row.image_path ? imageUrl(row.image_path, 'category-images') : '' }; }
 
 async function loadProducts() {
-  const { data, error } = await supabase.from('products').select('id,name,category,detail,image_path,created_at').order('created_at');
-  if (error) throw error;
-  products = (data || []).map(normalizeProduct);
+  const [{ data: productRows, error: productError }, { data: categoryRows, error: categoryError }] = await Promise.all([
+    supabase.from('products').select('id,name,category,detail,image_path,created_at').order('created_at'),
+    supabase.from('categories').select('name,note,image_path,created_at').order('created_at')
+  ]);
+  if (productError) throw productError;
+  if (categoryError) throw categoryError;
+  products = (productRows || []).map(normalizeProduct);
+  categories = (categoryRows || []).map(normalizeCategory);
   return [...CatalogModel.getProducts(), ...products];
 }
 
 function renderAdminProducts() {
-  $('#categoryOptions').innerHTML = [...new Set(products.map(item => item.category))].map(category => `<option value="${escapeHtml(category)}"></option>`).join('');
-  $('#customProducts').innerHTML = products.length ? products.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span></div><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há produtos cadastrados.</p>';
+  $('#productCategory').innerHTML = categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
+  $('#categoryProductCount').textContent = `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`;
+  $('#productCount').textContent = `${products.length} ${products.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}`;
+  $('#productsSummary').textContent = $('#productCount').textContent;
+  $('#categoryCount').textContent = categories.length;
+  $('#customProducts').innerHTML = products.length ? products.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há produtos cadastrados.</p>';
+  $('#customCategories').innerHTML = categories.length ? categories.map(category => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(category.image || '../assets/images/Caneca.jpeg')}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(category.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(category.note || 'Sem descrição')}</span></div><button class="edit-category rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-name="${escapeHtml(category.name)}">Editar</button><button class="delete-category rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-name="${escapeHtml(category.name)}">Excluir</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Cadastre sua primeira categoria.</p>';
 }
 
 function renderCustomerCatalog(query = '') {
@@ -91,6 +105,39 @@ function showAuth() {
   $('#authPanel').classList.remove('hidden');
   $('#adminPanel').classList.add('hidden');
   $('#customerPanel').classList.add('hidden');
+}
+
+function imageFileError(file) {
+  if (!file) return 'Selecione uma imagem JPG, PNG ou WebP de até 5 MB.';
+  if (!allowedImageTypes.includes(file.type) || file.size > maxImageSize) return 'Use uma imagem JPG, PNG ou WebP de até 5 MB.';
+  return '';
+}
+
+async function uploadImage(file, bucket) {
+  const extension = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+  const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
+  const result = await supabase.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });
+  if (result.error) throw result.error;
+  return path;
+}
+
+function resetProductForm() {
+  editingProductId = null;
+  $('#productForm').reset();
+  $('#productFormTitle').textContent = 'Cadastrar produto';
+  $('#productSubmit').textContent = 'Salvar produto';
+  $('#cancelProductEdit').classList.add('hidden');
+  $('#productImage').required = true;
+}
+
+function resetCategoryForm() {
+  editingCategoryName = null;
+  $('#categoryForm').reset();
+  $('#categoryFormTitle').textContent = 'Nova categoria';
+  $('#categorySubmit').textContent = 'Salvar categoria';
+  $('#cancelCategoryEdit').classList.add('hidden');
+  $('#categoryImage').required = true;
+  $('#categoryImageHint').textContent = 'JPG, PNG ou WebP; até 5 MB.';
 }
 
 $('#modeToggle').addEventListener('click', () => { mode = mode === 'login' ? 'register' : 'login'; message($('#authMessage'), ''); renderAuth(); });
@@ -157,33 +204,124 @@ $('#shoppingCart').addEventListener('click', async event => {
 $('#productForm').addEventListener('submit', async event => {
   event.preventDefault();
   const file = $('#productImage').files[0];
-  if (!file || file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return message($('#productMessage'), 'Selecione JPG, PNG ou WebP de até 5 MB.', true);
+  if ((!editingProductId || file) && imageFileError(file)) return message($('#productMessage'), imageFileError(file), true);
+  if (!categories.some(category => category.name === $('#productCategory').value)) return message($('#productMessage'), 'Selecione uma categoria cadastrada.', true);
   message($('#productMessage'), 'Salvando produto…');
-  const ext = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
-  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-  const uploaded = await supabase.storage.from('product-images').upload(path, file, { contentType: file.type, upsert: false });
-  if (uploaded.error) return message($('#productMessage'), uploaded.error.message, true);
-  const saved = await supabase.from('products').insert({ name: $('#productName').value.trim(), category: $('#productCategory').value.trim(), detail: $('#productDetail').value.trim(), image_path: path }).select().single();
-  if (saved.error) {
-    await supabase.storage.from('product-images').remove([path]);
-    return message($('#productMessage'), saved.error.message, true);
+  let newImagePath = null;
+  try {
+    if (file) newImagePath = await uploadImage(file, 'product-images');
+    const payload = { name: $('#productName').value.trim(), category: $('#productCategory').value, detail: $('#productDetail').value.trim() };
+    if (newImagePath) payload.image_path = newImagePath;
+    const result = editingProductId
+      ? await supabase.from('products').update(payload).eq('id', editingProductId).select().single()
+      : await supabase.from('products').insert({ ...payload, image_path: newImagePath }).select().single();
+    if (result.error) throw result.error;
+    const previous = products.find(item => item.id === editingProductId);
+    if (previous && newImagePath && previous.image_path) await supabase.storage.from('product-images').remove([previous.image_path]);
+    resetProductForm();
+    message($('#productMessage'), 'Produto salvo no catálogo.');
+    await loadProducts();
+    renderAdminProducts();
+  } catch (error) {
+    if (newImagePath) await supabase.storage.from('product-images').remove([newImagePath]);
+    message($('#productMessage'), error.message || 'Não foi possível salvar o produto.', true);
   }
-  $('#productForm').reset();
-  message($('#productMessage'), 'Produto salvo no catálogo.');
-  await loadProducts();
-  renderAdminProducts();
 });
 
 $('#customProducts').addEventListener('click', async event => {
-  const button = event.target.closest('.delete-product');
-  if (!button) return;
-  const product = products.find(item => item.id === button.dataset.id);
-  const removed = await supabase.from('products').delete().eq('id', product.id);
-  if (removed.error) return message($('#productMessage'), removed.error.message, true);
-  await supabase.storage.from('product-images').remove([product.image_path]);
-  await loadProducts();
-  renderAdminProducts();
+  const editButton = event.target.closest('.edit-product');
+  const deleteButton = event.target.closest('.delete-product');
+  if (editButton) {
+    const product = products.find(item => item.id === editButton.dataset.id);
+    if (!product) return;
+    editingProductId = product.id;
+    $('#productName').value = product.name;
+    $('#productCategory').value = product.category;
+    $('#productDetail').value = product.detail;
+    $('#productImage').required = false;
+    $('#productFormTitle').textContent = 'Editar produto';
+    $('#productSubmit').textContent = 'Salvar alterações';
+    $('#cancelProductEdit').classList.remove('hidden');
+    message($('#productMessage'), 'A imagem atual será mantida se você não selecionar outra.');
+    $('#productForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  if (deleteButton) {
+    const product = products.find(item => item.id === deleteButton.dataset.id);
+    if (!product) return;
+    if (!confirm(`Excluir o produto “${product.name}”?`)) return;
+    const removed = await supabase.from('products').delete().eq('id', product.id);
+    if (removed.error) return message($('#productMessage'), removed.error.message, true);
+    if (product.image_path) await supabase.storage.from('product-images').remove([product.image_path]);
+    await loadProducts();
+    renderAdminProducts();
+    message($('#productMessage'), 'Produto excluído.');
+  }
 });
+
+$('#cancelProductEdit').addEventListener('click', resetProductForm);
+
+$('#categoryForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const file = $('#categoryImage').files[0];
+  const current = categories.find(category => category.name === editingCategoryName);
+  if ((!editingCategoryName || file || !current?.image_path) && imageFileError(file)) return message($('#categoryMessage'), imageFileError(file), true);
+  if (editingCategoryName && !current) return message($('#categoryMessage'), 'Categoria não encontrada. Atualize a página e tente novamente.', true);
+  message($('#categoryMessage'), 'Salvando categoria…');
+  let newImagePath = null;
+  try {
+    if (file) newImagePath = await uploadImage(file, 'category-images');
+    const name = $('#categoryName').value.trim();
+    const payload = { name, note: $('#categoryNote').value.trim(), updated_at: new Date().toISOString() };
+    if (newImagePath) payload.image_path = newImagePath;
+    const result = editingCategoryName
+      ? await supabase.from('categories').update(payload).eq('name', editingCategoryName).select().single()
+      : await supabase.from('categories').insert({ ...payload, image_path: newImagePath }).select().single();
+    if (result.error) throw result.error;
+    if (current && newImagePath && current.image_path) await supabase.storage.from('category-images').remove([current.image_path]);
+    resetCategoryForm();
+    message($('#categoryMessage'), 'Categoria salva.');
+    await loadProducts();
+    renderAdminProducts();
+  } catch (error) {
+    if (newImagePath) await supabase.storage.from('category-images').remove([newImagePath]);
+    message($('#categoryMessage'), error.message || 'Não foi possível salvar a categoria.', true);
+  }
+});
+
+$('#customCategories').addEventListener('click', async event => {
+  const editButton = event.target.closest('.edit-category');
+  const deleteButton = event.target.closest('.delete-category');
+  if (editButton) {
+    const category = categories.find(item => item.name === editButton.dataset.name);
+    if (!category) return;
+    editingCategoryName = category.name;
+    $('#categoryName').value = category.name;
+    $('#categoryNote').value = category.note;
+    $('#categoryImage').required = !category.image_path;
+    $('#categoryFormTitle').textContent = `Editar ${category.name}`;
+    $('#categorySubmit').textContent = 'Salvar alterações';
+    $('#categoryImageHint').textContent = 'Opcional: escolha uma nova imagem para substituir a atual.';
+    $('#cancelCategoryEdit').classList.remove('hidden');
+    message($('#categoryMessage'), 'A foto atual será mantida se você não selecionar outra.');
+    $('#categoryForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  if (deleteButton) {
+    const category = categories.find(item => item.name === deleteButton.dataset.name);
+    if (!category) return;
+    if (!confirm(`Excluir a categoria “${category.name}”?`)) return;
+    const removed = await supabase.from('categories').delete().eq('name', category.name);
+    if (removed.error) {
+      const inUse = removed.error.code === '23503';
+      return message($('#categoryMessage'), inUse ? 'Esta categoria possui produtos. Reclassifique ou exclua esses produtos antes.' : removed.error.message, true);
+    }
+    if (category.image_path) await supabase.storage.from('category-images').remove([category.image_path]);
+    await loadProducts();
+    renderAdminProducts();
+    message($('#categoryMessage'), 'Categoria excluída.');
+  }
+});
+
+$('#cancelCategoryEdit').addEventListener('click', resetCategoryForm);
 
 renderAuth();
 if (!isConfigured()) message($('#authMessage'), 'A configuração do Supabase está incompleta. Veja o README para conectar o projeto.', true);
