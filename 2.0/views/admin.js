@@ -46,7 +46,9 @@ async function loadProducts() {
   if (categoryError) throw categoryError;
   products = (productRows || []).map(normalizeProduct);
   categories = (categoryRows || []).map(normalizeCategory);
-  return [...CatalogModel.getProducts(), ...products];
+  CatalogModel.setProducts(products);
+  CatalogModel.setCategories(categories);
+  return CatalogModel.getProducts();
 }
 
 async function loadCustomers() {
@@ -105,7 +107,7 @@ function renderAdminProducts() {
 
 function renderCustomerCatalog(query = '') {
   const normalized = query.trim().toLocaleLowerCase('pt-BR');
-  const visible = [...CatalogModel.getProducts(), ...products].filter(item => !normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized));
+  const visible = CatalogModel.getProducts().filter(item => !normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized));
   $('#customerCatalog').innerHTML = visible.length ? visible.map(item => `<article class="overflow-hidden rounded-2xl border border-berit-line"><img class="aspect-[4/3] w-full object-cover" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy"><div class="p-4"><span class="text-[10px] font-semibold uppercase tracking-widest text-berit-green">${escapeHtml(item.category)}</span><h3 class="mt-1 font-serif text-lg">${escapeHtml(item.name)}</h3><p class="mt-1 min-h-10 text-xs leading-5 text-berit-muted">${escapeHtml(item.detail)}</p><button class="add-to-cart mt-3 rounded-full bg-berit-green px-4 py-2 text-xs font-bold text-white hover:bg-berit-dark" data-id="${escapeHtml(item.id)}">Adicionar ao carrinho +</button></div></article>`).join('') : '<p class="text-sm text-berit-muted">Nenhum produto encontrado.</p>';
 }
 
@@ -234,7 +236,7 @@ $('#adminPanel').addEventListener('click', event => {
 $('#customerCatalog').addEventListener('click', async event => {
   const button = event.target.closest('.add-to-cart');
   if (!button) return;
-  const product = [...CatalogModel.getProducts(), ...products].find(item => item.id === button.dataset.id);
+  const product = CatalogModel.getProducts().find(item => item.id === button.dataset.id);
   const existing = cartItems.find(item => item.product_key === product.id);
   const row = { user_id: user.id, product_key: product.id, name: product.name, category: product.category, detail: product.detail, image: product.image, quantity: Math.min(99, (existing?.quantity || 0) + 1), updated_at: new Date().toISOString() };
   const { error } = await supabase.from('cart_items').upsert(row, { onConflict: 'user_id,product_key' });
@@ -271,7 +273,7 @@ $('#productForm').addEventListener('submit', async event => {
       : await supabase.from('products').insert({ ...payload, image_path: newImagePath }).select().single();
     if (result.error) throw result.error;
     const previous = products.find(item => item.id === editingProductId);
-    if (previous && newImagePath && previous.image_path) await supabase.storage.from('product-images').remove([previous.image_path]);
+    if (previous && newImagePath && previous.image_path && !/^https?:\/\//i.test(previous.image_path)) await supabase.storage.from('product-images').remove([previous.image_path]);
     resetProductForm();
     message($('#productMessage'), 'Produto salvo no catálogo.');
     await loadProducts();
@@ -305,7 +307,7 @@ $('#customProducts').addEventListener('click', async event => {
     if (!confirm(`Excluir o produto “${product.name}”?`)) return;
     const removed = await supabase.from('products').delete().eq('id', product.id);
     if (removed.error) return message($('#productMessage'), removed.error.message, true);
-    if (product.image_path) await supabase.storage.from('product-images').remove([product.image_path]);
+    if (product.image_path && !/^https?:\/\//i.test(product.image_path)) await supabase.storage.from('product-images').remove([product.image_path]);
     await loadProducts();
     renderAdminProducts();
     message($('#productMessage'), 'Produto excluído.');

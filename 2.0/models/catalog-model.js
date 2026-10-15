@@ -24,6 +24,7 @@ export const CatalogModel = (() => {
   let remoteProducts = [];
   let remoteCategories = [];
   let remoteCategoriesLoaded = false;
+  const productKey = product => `${product.name.trim().toLocaleLowerCase('pt-BR')}|${product.category.trim().toLocaleLowerCase('pt-BR')}`;
   function getCategories() {
     const result = (remoteCategoriesLoaded ? remoteCategories : categories).map(category => ({ ...category }));
     for (const product of [...(remoteCategoriesLoaded ? [] : products), ...remoteProducts]) {
@@ -35,7 +36,9 @@ export const CatalogModel = (() => {
   }
   function getProducts(filters = {}) {
     const query = (filters.query || '').trim().toLocaleLowerCase('pt-BR');
-    const result = [...products, ...remoteProducts].filter(product =>
+    const remoteKeys = new Set(remoteProducts.map(productKey));
+    const catalogProducts = [...products.filter(product => !remoteKeys.has(productKey(product))), ...remoteProducts];
+    const result = catalogProducts.filter(product =>
       (!filters.category || filters.category === 'Todos' || product.category === filters.category) &&
       (!query || `${product.name} ${product.category} ${product.detail}`.toLocaleLowerCase('pt-BR').includes(query))
     );
