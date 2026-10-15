@@ -15,6 +15,7 @@ let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
 let productSearchQuery = '';
+let customerCategory = '';
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -130,19 +131,27 @@ function renderAdminProducts() {
 
 function renderCustomerCatalog(query = '') {
   const normalized = query.trim().toLocaleLowerCase('pt-BR');
-  const visible = CatalogModel.getProducts().filter(item => !normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized));
-  $('#customerCatalog').innerHTML = visible.length ? visible.map(item => `<article class="overflow-hidden rounded-2xl border border-berit-line"><img class="aspect-[4/3] w-full object-cover" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy"><div class="p-4"><span class="text-[10px] font-semibold uppercase tracking-widest text-berit-green">${escapeHtml(item.category)}</span><h3 class="mt-1 font-serif text-lg">${escapeHtml(item.name)}</h3><p class="mt-1 min-h-10 text-xs leading-5 text-berit-muted">${escapeHtml(item.detail)}</p><button class="add-to-cart mt-3 rounded-full bg-berit-green px-4 py-2 text-xs font-bold text-white hover:bg-berit-dark" data-id="${escapeHtml(item.id)}">Adicionar ao carrinho +</button></div></article>`).join('') : '<p class="text-sm text-berit-muted">Nenhum produto encontrado.</p>';
+  const allProducts = CatalogModel.getProducts();
+  $('#customerCategoryFilter').innerHTML = '<option value="">Todas as categorias</option>' + categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
+  $('#customerCategoryFilter').value = customerCategory;
+  const visible = allProducts.filter(item => (!customerCategory || item.category === customerCategory) && (!normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized)));
+  $('#customerProductCount').textContent = `${visible.length} ${visible.length === 1 ? 'produto' : 'produtos'}${visible.length !== allProducts.length ? ` de ${allProducts.length}` : ''}`;
+  $('#customerCatalog').innerHTML = visible.length ? visible.map(item => {
+    const quantity = cartItems.find(cartItem => cartItem.product_key === item.id)?.quantity || 0;
+    return `<article class="group overflow-hidden rounded-2xl border border-berit-line bg-white transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(48,56,34,.10)]"><div class="relative overflow-hidden bg-berit-cream"><img class="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.03]" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy">${quantity ? `<span class="absolute right-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-bold text-berit-green shadow">${quantity} no carrinho</span>` : ''}</div><div class="p-4"><span class="text-[10px] font-bold uppercase tracking-widest text-berit-green">${escapeHtml(item.category)}</span><h3 class="mt-1 font-serif text-lg">${escapeHtml(item.name)}</h3><p class="mt-2 min-h-10 text-xs leading-5 text-berit-muted">${escapeHtml(item.detail)}</p><button class="add-to-cart mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-berit-green px-4 py-3 text-xs font-bold text-white transition hover:bg-berit-dark" data-id="${escapeHtml(item.id)}">${quantity ? 'Adicionar mais +' : 'Adicionar ao carrinho +'}</button></div></article>`;
+  }).join('') : '<p class="col-span-full rounded-2xl bg-berit-cream p-5 text-sm text-berit-muted">Nenhum produto encontrado. Tente outro termo ou categoria.</p>';
 }
 
 function renderCart() {
   const count = cartItems.reduce((total, item) => total + item.quantity, 0);
-  $('#cartCount').textContent = count ? `(${count} ${count === 1 ? 'item' : 'itens'})` : '';
-  $('#shoppingCart').innerHTML = cartItems.length ? cartItems.map(item => `<article class="flex items-center gap-3 rounded-xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-12 w-12 rounded-lg object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-xs">${escapeHtml(item.name)}</strong><div class="mt-1 flex items-center gap-2"><button class="cart-quantity rounded-full border border-berit-line px-2" data-action="decrease" data-id="${escapeHtml(item.product_key)}">−</button><span class="text-xs text-berit-muted">${item.quantity}</span><button class="cart-quantity rounded-full border border-berit-line px-2" data-action="increase" data-id="${escapeHtml(item.product_key)}">+</button></div></div><button class="cart-remove px-2 text-xs font-semibold text-red-700" data-id="${escapeHtml(item.product_key)}">Remover</button></article>`).join('') : '<p class="rounded-xl bg-berit-cream p-4 text-sm text-berit-muted">Seu carrinho está vazio. Escolha os produtos de que gostou.</p>';
+  $('#cartCount').textContent = `${count} ${count === 1 ? 'item' : 'itens'}`;
+  $('#shoppingCart').innerHTML = cartItems.length ? cartItems.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="h-14 w-14 shrink-0 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span><div class="mt-2 inline-flex items-center gap-3 rounded-full bg-berit-cream px-2 py-1"><button class="cart-quantity flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-berit-green" aria-label="Diminuir quantidade de ${escapeHtml(item.name)}" data-action="decrease" data-id="${escapeHtml(item.product_key)}">−</button><span class="min-w-4 text-center text-xs font-semibold">${item.quantity}</span><button class="cart-quantity flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-berit-green" aria-label="Aumentar quantidade de ${escapeHtml(item.name)}" data-action="increase" data-id="${escapeHtml(item.product_key)}">+</button></div></div><button class="cart-remove self-start px-1 text-lg leading-none text-berit-muted transition hover:text-red-700" aria-label="Remover ${escapeHtml(item.name)}" title="Remover" data-id="${escapeHtml(item.product_key)}">×</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm leading-6 text-berit-muted">Seu carrinho está vazio. Adicione os produtos que deseja incluir no orçamento.</p>';
   const checkout = $('#checkoutButton');
   checkout.classList.toggle('hidden', !cartItems.length);
   checkout.classList.toggle('flex', Boolean(cartItems.length));
   const details = cartItems.map(item => `• ${item.name} (${item.category}) — quantidade: ${item.quantity}`).join('\n');
   checkout.href = `https://wa.me/5579981422536?text=${encodeURIComponent(`Oi, Berit! Tenho interesse nestes produtos:\n${details}\n\nGostaria de solicitar um orçamento.`)}`;
+  renderCustomerCatalog($('#catalogSearch').value);
 }
 
 async function loadCart() {
@@ -257,6 +266,10 @@ $('#forgotButton').addEventListener('click', async () => {
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
 $('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
+$('#customerCategoryFilter').addEventListener('change', event => {
+  customerCategory = event.target.value;
+  renderCustomerCatalog($('#catalogSearch').value);
+});
 $('#productSearch').addEventListener('input', event => {
   productSearchQuery = event.target.value;
   renderAdminProducts();
