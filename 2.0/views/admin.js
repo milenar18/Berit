@@ -3,6 +3,12 @@ import { CatalogModel } from '../models/catalog-model.js';
 
 const $ = selector => document.querySelector(selector);
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const formatMoney = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
+const productPriceMarkup = product => {
+  if (product.price == null) return '<span class="text-sm font-semibold text-berit-muted">Consulte o preço</span>';
+  if (product.promotion_price != null) return `<span class="inline-flex flex-wrap items-center gap-x-2 gap-y-1"><del class="text-xs text-berit-muted">${formatMoney(product.price)}</del><strong class="text-base text-berit-green">${formatMoney(product.promotion_price)}</strong>${product.promotion_label ? `<span class="rounded-full bg-berit-lime px-2 py-1 text-[10px] font-bold uppercase text-berit-green">${escapeHtml(product.promotion_label)}</span>` : ''}</span>`;
+  return `<strong class="text-sm text-berit-ink">${formatMoney(product.price)}</strong>`;
+};
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const maxImageSize = 5 * 1024 * 1024;
 let mode = 'login';
@@ -16,10 +22,31 @@ let editingProductId = null;
 let editingCategoryName = null;
 let productSearchQuery = '';
 let customerCategory = '';
+const adminPageSize = 6;
+const customerCatalogPageSize = 6;
+let customerPage = 1;
+let categoryPage = 1;
+let productPage = 1;
+let customerCatalogPage = 1;
 
 function message(element, text, error = false) {
   element.textContent = text;
   element.className = `text-sm ${error ? 'text-red-700' : 'text-berit-muted'}`;
+}
+
+function pageItems(items, requestedPage) {
+  const totalPages = Math.max(1, Math.ceil(items.length / adminPageSize));
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  return {
+    page,
+    totalPages,
+    items: items.slice((page - 1) * adminPageSize, page * adminPageSize)
+  };
+}
+
+function paginationMarkup(listName, page, totalPages) {
+  if (totalPages <= 1) return '';
+  return `<nav class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-berit-line pt-4" aria-label="Paginação de ${listName}"><span class="text-xs text-berit-muted">Página ${page} de ${totalPages}</span><div class="flex items-center gap-2"><button type="button" class="admin-pagination-button rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green transition hover:border-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-pagination="${listName}" data-direction="previous" ${page === 1 ? 'disabled' : ''} aria-label="Página anterior de ${listName}">Anterior</button><button type="button" class="admin-pagination-button rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green transition hover:border-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-pagination="${listName}" data-direction="next" ${page === totalPages ? 'disabled' : ''} aria-label="Próxima página de ${listName}">Próxima</button></div></nav>`;
 }
 
 function renderAuth() {
@@ -41,7 +68,7 @@ function normalizeCategory(row) { return { ...row, image: row.image_path ? image
 
 async function loadProducts() {
   const [{ data: productRows, error: productError }, { data: categoryRows, error: categoryError }] = await Promise.all([
-    supabase.from('products').select('id,name,category,detail,image_path,created_at').order('created_at'),
+    supabase.from('products').select('id,name,category,detail,image_path,sku,price,promotion_price,promotion_label,is_active,created_at').order('created_at'),
     supabase.from('categories').select('name,note,image_path,created_at').order('created_at')
   ]);
   if (productError) throw productError;
@@ -74,11 +101,15 @@ function renderAdminCustomers() {
   if (customersError) {
     const errorMarkup = `<p class="rounded-2xl bg-red-50 p-4 text-sm text-red-700">Não foi possível carregar clientes: ${escapeHtml(customersError)}</p>`;
     list.innerHTML = errorMarkup;
+    $('#customerPagination').innerHTML = '';
     recent.innerHTML = errorMarkup;
     return;
   }
   const item = customer => `<article class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-berit-line p-4"><div><strong class="block text-sm">${escapeHtml(customer.display_name || 'Cliente')}</strong><span class="mt-1 block text-xs text-berit-muted">Cadastro em ${new Date(customer.created_at).toLocaleDateString('pt-BR')}</span></div><span class="rounded-full bg-berit-cream px-3 py-1 text-xs font-semibold text-berit-green">Cliente</span></article>`;
-  list.innerHTML = visible.length ? visible.map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Nenhum cliente encontrado.</p>';
+  const pagedCustomers = pageItems(visible, customerPage);
+  customerPage = pagedCustomers.page;
+  list.innerHTML = visible.length ? pagedCustomers.items.map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Nenhum cliente encontrado.</p>';
+  $('#customerPagination').innerHTML = paginationMarkup('clientes', customerPage, pagedCustomers.totalPages);
   recent.innerHTML = customers.length ? customers.slice(0, 4).map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há clientes cadastrados.</p>';
 }
 
@@ -87,28 +118,46 @@ function showAdminPanel(panelId) {
   document.querySelectorAll('.admin-tab').forEach(button => {
     const selected = button.dataset.adminTab === panelId;
     button.setAttribute('aria-selected', String(selected));
-    button.classList.toggle('bg-berit-green', selected);
-    button.classList.toggle('text-white', selected);
-    button.classList.toggle('text-berit-muted', !selected);
-    button.classList.toggle('hover:bg-berit-cream', !selected);
-    button.classList.toggle('hover:text-berit-green', !selected);
+    button.tabIndex = selected ? 0 : -1;
   });
   setAdminSidebarOpen(false);
 }
 
 function setAdminSidebarOpen(open) {
+  const wasOpen = !$('#adminSidebar').classList.contains('-translate-x-full');
   $('#adminSidebar').classList.toggle('-translate-x-full', !open);
   $('#adminScrim').classList.toggle('hidden', !open);
   $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
+  document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
+  if (!open && wasOpen && window.matchMedia('(max-width: 1023px)').matches) $('#adminMenuToggle').focus();
+}
+
+function showCustomerSection(sectionId) {
+  ['customerOverview', 'customerOrders', 'customerSupport'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== sectionId));
+  document.querySelectorAll('.customer-nav-link').forEach(button => {
+    if (button.dataset.customerSection === sectionId) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  setCustomerSidebarOpen(false);
+}
+
+function setCustomerSidebarOpen(open) {
+  const wasOpen = !$('#customerSidebar').classList.contains('-translate-x-full');
+  $('#customerSidebar').classList.toggle('-translate-x-full', !open);
+  $('#customerScrim').classList.toggle('hidden', !open);
+  $('#customerMenuToggle').setAttribute('aria-expanded', String(open));
+  document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
+  if (!open && wasOpen && window.matchMedia('(max-width: 1023px)').matches) $('#customerMenuToggle').focus();
 }
 
 function renderAdminProducts() {
   const productNormalized = productSearchQuery.trim().toLocaleLowerCase('pt-BR');
   const visibleProducts = products.filter(item => {
-    const searchable = `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR');
+    const searchable = `${item.name} ${item.category} ${item.detail} ${item.sku || ''}`.toLocaleLowerCase('pt-BR');
     return !productNormalized || searchable.includes(productNormalized);
   });
-  const visibleCategories = categories;
+  const pagedCategories = pageItems(categories, categoryPage);
+  categoryPage = pagedCategories.page;
   $('#productCategory').innerHTML = categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
   $('#categoryProductCount').textContent = `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`;
   $('#productCount').textContent = `${products.length} ${products.length === 1 ? 'produto cadastrado' : 'produtos cadastrados'}`;
@@ -117,16 +166,27 @@ function renderAdminProducts() {
     ? `${visibleProducts.length} de ${products.length} ${products.length === 1 ? 'produto' : 'produtos'}`
     : $('#productCount').textContent;
   $('#categoryCount').textContent = categories.length;
-  const productCard = item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.detail)}</span></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`;
+  const productCard = item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong>${item.is_active === false ? '<span class="rounded-full bg-berit-cream px-2 py-1 text-[10px] font-bold uppercase text-berit-muted">Inativo</span>' : ''}</div><span class="block truncate text-xs text-berit-muted">${item.sku ? `SKU ${escapeHtml(item.sku)} · ` : ''}${escapeHtml(item.detail)}</span><div class="mt-1">${productPriceMarkup(item)}</div></div><button class="edit-product rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-id="${escapeHtml(item.id)}">Editar</button><button class="delete-product rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-id="${escapeHtml(item.id)}">Excluir</button></article>`;
+  const categoryOrder = new Map(categories.map((category, index) => [category.name, index]));
+  const groupedVisibleProducts = [...visibleProducts].sort((a, b) =>
+    (categoryOrder.get(a.category) ?? categories.length) - (categoryOrder.get(b.category) ?? categories.length) ||
+    a.category.localeCompare(b.category, 'pt-BR') ||
+    a.name.localeCompare(b.name, 'pt-BR')
+  );
+  const pagedProducts = pageItems(groupedVisibleProducts, productPage);
+  productPage = pagedProducts.page;
   const groupedProducts = categories.map(category => ({
     name: category.name,
-    items: visibleProducts.filter(item => item.category === category.name)
+    total: visibleProducts.filter(item => item.category === category.name).length,
+    items: pagedProducts.items.filter(item => item.category === category.name)
   })).filter(group => group.items.length);
   const knownCategories = new Set(categories.map(category => category.name));
-  const uncategorized = visibleProducts.filter(item => !knownCategories.has(item.category));
-  if (uncategorized.length) groupedProducts.push({ name: 'Outros produtos', items: uncategorized });
-  $('#customProducts').innerHTML = groupedProducts.length ? groupedProducts.map(group => `<section class="space-y-3"><div class="flex items-center justify-between border-b border-berit-line pb-2"><h4 class="font-semibold text-berit-ink">${escapeHtml(group.name)}</h4><span class="rounded-full bg-berit-cream px-3 py-1 text-xs font-semibold text-berit-muted">${group.items.length} ${group.items.length === 1 ? 'produto' : 'produtos'}</span></div><div class="space-y-3">${group.items.map(productCard).join('')}</div></section>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">${products.length ? 'Nenhum produto corresponde à busca.' : 'Ainda não há produtos cadastrados.'}</p>`;
-  $('#customCategories').innerHTML = visibleCategories.length ? visibleCategories.map(category => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(category.image || '../assets/images/Caneca.jpeg')}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(category.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(category.note || 'Sem descrição')}</span></div><button class="edit-category rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-name="${escapeHtml(category.name)}">Editar</button><button class="delete-category rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-name="${escapeHtml(category.name)}">Excluir</button></article>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">${categories.length ? 'Nenhuma categoria corresponde à busca.' : 'Cadastre sua primeira categoria.'}</p>`;
+  const uncategorized = pagedProducts.items.filter(item => !knownCategories.has(item.category));
+  if (uncategorized.length) groupedProducts.push({ name: 'Outros produtos', total: visibleProducts.filter(item => !knownCategories.has(item.category)).length, items: uncategorized });
+  $('#customProducts').innerHTML = groupedProducts.length ? groupedProducts.map(group => `<section class="space-y-3 rounded-2xl border border-berit-line bg-white p-4"><div class="flex items-center justify-between gap-3 border-b border-berit-line pb-3"><h4 class="font-serif text-lg text-berit-ink">${escapeHtml(group.name)}</h4><span class="shrink-0 rounded-full bg-berit-cream px-3 py-1 text-xs font-semibold text-berit-muted">${group.total} ${group.total === 1 ? 'produto' : 'produtos'}</span></div><div class="space-y-3">${group.items.map(productCard).join('')}</div></section>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">${products.length ? 'Nenhum produto corresponde à busca.' : 'Ainda não há produtos cadastrados.'}</p>`;
+  $('#productPagination').innerHTML = paginationMarkup('produtos', productPage, pagedProducts.totalPages);
+  $('#customCategories').innerHTML = categories.length ? pagedCategories.items.map(category => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(category.image || '../assets/images/Caneca.jpeg')}" alt="" class="h-14 w-14 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(category.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(category.note || 'Sem descrição')}</span></div><button class="edit-category rounded-full px-3 py-2 text-xs font-semibold text-berit-green hover:bg-berit-cream" data-name="${escapeHtml(category.name)}">Editar</button><button class="delete-category rounded-full px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" data-name="${escapeHtml(category.name)}">Excluir</button></article>`).join('') : `<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Cadastre sua primeira categoria.</p>`;
+  $('#categoryPagination').innerHTML = paginationMarkup('categorias', categoryPage, pagedCategories.totalPages);
 }
 
 function renderCustomerCatalog(query = '') {
@@ -135,11 +195,20 @@ function renderCustomerCatalog(query = '') {
   $('#customerCategoryFilter').innerHTML = '<option value="">Todas as categorias</option>' + categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
   $('#customerCategoryFilter').value = customerCategory;
   const visible = allProducts.filter(item => (!customerCategory || item.category === customerCategory) && (!normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized)));
-  $('#customerProductCount').textContent = `${visible.length} ${visible.length === 1 ? 'produto' : 'produtos'}${visible.length !== allProducts.length ? ` de ${allProducts.length}` : ''}`;
-  $('#customerCatalog').innerHTML = visible.length ? visible.map(item => {
+  const totalPages = Math.max(1, Math.ceil(visible.length / customerCatalogPageSize));
+  customerCatalogPage = Math.min(Math.max(1, customerCatalogPage), totalPages);
+  const start = visible.length ? (customerCatalogPage - 1) * customerCatalogPageSize : 0;
+  const pageItems = visible.slice(start, start + customerCatalogPageSize);
+  $('#customerProductCount').textContent = visible.length
+    ? `${start + 1}–${Math.min(start + customerCatalogPageSize, visible.length)} de ${visible.length} ${visible.length === 1 ? 'produto' : 'produtos'}`
+    : 'Nenhum produto';
+  $('#customerCatalog').innerHTML = pageItems.length ? pageItems.map(item => {
     const quantity = cartItems.find(cartItem => cartItem.product_key === item.id)?.quantity || 0;
     return `<article class="group overflow-hidden rounded-2xl border border-berit-line bg-white transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(48,56,34,.10)]"><div class="relative overflow-hidden bg-berit-cream"><img class="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.03]" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy">${quantity ? `<span class="absolute right-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-bold text-berit-green shadow">${quantity} no carrinho</span>` : ''}</div><div class="p-4"><span class="text-[10px] font-bold uppercase tracking-widest text-berit-green">${escapeHtml(item.category)}</span><h3 class="mt-1 font-serif text-lg">${escapeHtml(item.name)}</h3><p class="mt-2 min-h-10 text-xs leading-5 text-berit-muted">${escapeHtml(item.detail)}</p><button class="add-to-cart mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-berit-green px-4 py-3 text-xs font-bold text-white transition hover:bg-berit-dark" data-id="${escapeHtml(item.id)}">${quantity ? 'Adicionar mais +' : 'Adicionar ao carrinho +'}</button></div></article>`;
   }).join('') : '<p class="col-span-full rounded-2xl bg-berit-cream p-5 text-sm text-berit-muted">Nenhum produto encontrado. Tente outro termo ou categoria.</p>';
+  $('#customerCatalogPagination').innerHTML = totalPages > 1
+    ? `<nav class="mt-6 flex items-center justify-between gap-3 border-t border-berit-line pt-4" aria-label="Paginação do catálogo"><span class="text-xs text-berit-muted">Página ${customerCatalogPage} de ${totalPages}</span><div class="flex items-center gap-2"><button type="button" class="customer-catalog-page rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-page-direction="previous" ${customerCatalogPage === 1 ? 'disabled' : ''} aria-label="Página anterior do catálogo">Anterior</button><button type="button" class="customer-catalog-page rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-page-direction="next" ${customerCatalogPage === totalPages ? 'disabled' : ''} aria-label="Próxima página do catálogo">Próxima</button></div></nav>`
+    : '';
 }
 
 function renderCart() {
@@ -166,14 +235,21 @@ async function showSignedIn() {
   if (!user) return showAuth();
   const profileResult = await supabase.from('profiles').select('display_name,role').eq('id', user.id).single();
   if (profileResult.error) throw profileResult.error;
-  $('#authPanel').classList.add('hidden');
   const isAdmin = profileResult.data.role === 'admin';
-  $('#adminHeaderActions').classList.toggle('hidden', !isAdmin);
-  $('#adminHeaderActions').classList.toggle('flex', isAdmin);
-  $('#accountBackLink').classList.toggle('hidden', isAdmin);
   await loadProducts();
   if (isAdmin) {
     await loadCustomers();
+  } else {
+    await loadCart();
+  }
+
+  $('#authPanel').classList.add('hidden');
+  $('#adminHeaderActions').classList.toggle('hidden', !isAdmin);
+  $('#adminHeaderActions').classList.toggle('flex', isAdmin);
+  $('#customerMenuToggle').classList.toggle('hidden', isAdmin);
+  $('#adminMenuToggle').style.display = isAdmin ? '' : 'none';
+  $('#accountBackLink').classList.toggle('hidden', isAdmin);
+  if (isAdmin) {
     $('#customerPanel').classList.add('hidden');
     $('#adminPanel').classList.remove('hidden');
     renderAdminProducts();
@@ -183,8 +259,8 @@ async function showSignedIn() {
     $('#adminPanel').classList.add('hidden');
     $('#customerPanel').classList.remove('hidden');
     $('#greeting').textContent = profileResult.data.display_name || user.email || 'cliente';
+    showCustomerSection('customerOverview');
     renderCustomerCatalog();
-    await loadCart();
   }
 }
 
@@ -194,6 +270,8 @@ function showAuth() {
   $('#customerPanel').classList.add('hidden');
   $('#adminHeaderActions').classList.add('hidden');
   $('#adminHeaderActions').classList.remove('flex');
+  $('#customerMenuToggle').classList.add('hidden');
+  $('#adminMenuToggle').style.display = '';
   $('#accountBackLink').classList.remove('hidden');
 }
 
@@ -265,21 +343,79 @@ $('#forgotButton').addEventListener('click', async () => {
 });
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
-$('#catalogSearch').addEventListener('input', event => renderCustomerCatalog(event.target.value));
+$('#catalogSearch').addEventListener('input', event => {
+  customerCatalogPage = 1;
+  renderCustomerCatalog(event.target.value);
+});
 $('#customerCategoryFilter').addEventListener('change', event => {
   customerCategory = event.target.value;
+  customerCatalogPage = 1;
   renderCustomerCatalog($('#catalogSearch').value);
 });
 $('#productSearch').addEventListener('input', event => {
   productSearchQuery = event.target.value;
+  productPage = 1;
   renderAdminProducts();
 });
 $('#adminMenuToggle').addEventListener('click', () => setAdminSidebarOpen($('#adminSidebar').classList.contains('-translate-x-full')));
 $('#adminMenuClose').addEventListener('click', () => setAdminSidebarOpen(false));
 $('#adminScrim').addEventListener('click', () => setAdminSidebarOpen(false));
 $('#adminPanel').addEventListener('click', event => {
+  const paginationButton = event.target.closest('.admin-pagination-button');
+  if (paginationButton && !paginationButton.disabled) {
+    const pageDelta = paginationButton.dataset.direction === 'next' ? 1 : -1;
+    const listName = paginationButton.dataset.pagination;
+    if (listName === 'clientes') {
+      customerPage += pageDelta;
+      renderAdminCustomers();
+    } else if (listName === 'categorias') {
+      categoryPage += pageDelta;
+      renderAdminProducts();
+    } else if (listName === 'produtos') {
+      productPage += pageDelta;
+      renderAdminProducts();
+    }
+    return;
+  }
   const button = event.target.closest('[data-admin-tab]');
   if (button) showAdminPanel(button.dataset.adminTab);
+});
+$('#adminSidebar').addEventListener('keydown', event => {
+  const tabs = [...document.querySelectorAll('.admin-tab')];
+  const currentIndex = tabs.indexOf(event.target.closest('.admin-tab'));
+  if (currentIndex < 0) return;
+  let nextIndex;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+  else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  else if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = tabs.length - 1;
+  else return;
+  event.preventDefault();
+  tabs[nextIndex].focus();
+  showAdminPanel(tabs[nextIndex].dataset.adminTab);
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches && !$('#customerSidebar').classList.contains('-translate-x-full')) {
+    setCustomerSidebarOpen(false);
+  }
+  if (event.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches && !$('#adminSidebar').classList.contains('-translate-x-full')) {
+    setAdminSidebarOpen(false);
+  }
+});
+
+$('#customerMenuToggle').addEventListener('click', () => setCustomerSidebarOpen($('#customerSidebar').classList.contains('-translate-x-full')));
+$('#customerMenuClose').addEventListener('click', () => setCustomerSidebarOpen(false));
+$('#customerScrim').addEventListener('click', () => setCustomerSidebarOpen(false));
+$('#customerPanel').addEventListener('click', event => {
+  const pageButton = event.target.closest('.customer-catalog-page');
+  if (pageButton && !pageButton.disabled) {
+    customerCatalogPage += pageButton.dataset.pageDirection === 'next' ? 1 : -1;
+    renderCustomerCatalog($('#catalogSearch').value);
+    $('#customerCatalogSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  const button = event.target.closest('[data-customer-section]');
+  if (button) showCustomerSection(button.dataset.customerSection);
 });
 
 $('#customerCatalog').addEventListener('click', async event => {
@@ -311,11 +447,25 @@ $('#productForm').addEventListener('submit', async event => {
   const file = $('#productImage').files[0];
   if ((!editingProductId || file) && imageFileError(file)) return message($('#productMessage'), imageFileError(file), true);
   if (!categories.some(category => category.name === $('#productCategory').value)) return message($('#productMessage'), 'Selecione uma categoria cadastrada.', true);
+  const normalPrice = $('#productPrice').value === '' ? null : Number($('#productPrice').value);
+  const promotionPrice = $('#productPromotionPrice').value === '' ? null : Number($('#productPromotionPrice').value);
+  if (promotionPrice !== null && (normalPrice === null || promotionPrice >= normalPrice)) {
+    return message($('#productMessage'), 'O preço promocional precisa ser menor que o preço normal.', true);
+  }
   message($('#productMessage'), 'Salvando produto…');
   let newImagePath = null;
   try {
     if (file) newImagePath = await uploadImage(file, 'product-images');
-    const payload = { name: $('#productName').value.trim(), category: $('#productCategory').value, detail: $('#productDetail').value.trim() };
+    const payload = {
+      name: $('#productName').value.trim(),
+      sku: $('#productSku').value.trim() || null,
+      category: $('#productCategory').value,
+      detail: $('#productDetail').value.trim(),
+      price: normalPrice,
+      promotion_price: promotionPrice,
+      promotion_label: $('#productPromotionLabel').value.trim(),
+      is_active: $('#productActive').checked
+    };
     if (newImagePath) payload.image_path = newImagePath;
     const result = editingProductId
       ? await supabase.from('products').update(payload).eq('id', editingProductId).select().single()
@@ -343,6 +493,11 @@ $('#customProducts').addEventListener('click', async event => {
     $('#productName').value = product.name;
     $('#productCategory').value = product.category;
     $('#productDetail').value = product.detail;
+    $('#productSku').value = product.sku || '';
+    $('#productPrice').value = product.price ?? '';
+    $('#productPromotionPrice').value = product.promotion_price ?? '';
+    $('#productPromotionLabel').value = product.promotion_label || '';
+    $('#productActive').checked = product.is_active !== false;
     $('#productImage').required = false;
     $('#productFormTitle').textContent = 'Editar produto';
     $('#productSubmit').textContent = 'Salvar alterações';

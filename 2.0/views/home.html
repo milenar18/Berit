@@ -52,6 +52,17 @@
       <footer id="siteFooter" class="footer relative overflow-hidden bg-berit-dark px-6 py-10 text-white sm:px-12 sm:py-12 lg:px-16"><div class="flex w-full flex-col gap-7 sm:flex-row sm:items-center sm:justify-between"><div class="flex items-center gap-4 sm:gap-5"><a href="#inicio" class="footer-brand flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl bg-white p-3 shadow-soft ring-1 ring-white/20" aria-label="Berit — voltar ao início"><img class="h-full w-full object-contain" src="../assets/images/Logo.png" alt="Berit"></a><div><p class="text-lg font-semibold leading-tight sm:text-xl">Berit Brindes & Presentes</p><p class="mt-2 max-w-sm text-sm leading-relaxed text-white/75">Feito com carinho para transformar<br class="hidden sm:block"> presentes em boas memórias.</p></div></div><a class="inline-flex w-fit items-center gap-3 rounded-full bg-white px-5 py-3 text-sm font-bold text-berit-dark shadow-soft transition hover:-translate-y-0.5 hover:bg-berit-lime" href="#contato">Vamos conversar <span aria-hidden="true">↗</span></a></div><div class="footer-bottom mt-8 flex w-full flex-wrap items-center justify-center gap-4 border-t border-white/15 pt-5 text-center text-xs text-white/70"><span>© 2026 Berit Brindes & Presentes</span><a class="text-white/60 transition hover:text-white" href="admin.html">Entrar na sua conta</a></div></footer>
     </main>
   </div>
+  <dialog id="productDetailModal" class="product-detail-modal" aria-labelledby="productModalTitle" aria-describedby="productModalDescription">
+    <div class="product-detail-modal__layout">
+      <div class="product-detail-modal__image-wrap"><img id="productModalImage" src="" alt=""></div>
+      <div class="product-detail-modal__content">
+        <button id="productModalClose" class="product-detail-modal__close" type="button" aria-label="Fechar detalhes do produto">×</button>
+        <span id="productModalCategory" class="product-detail-modal__category"></span>
+        <h2 id="productModalTitle" class="product-detail-modal__title"></h2>
+        <p id="productModalDescription" class="product-detail-modal__description"></p>
+      </div>
+    </div>
+  </dialog>
   <a class="whatsapp-float fixed bottom-5 right-5 z-30 inline-flex items-center gap-2 rounded-full bg-berit-green px-5 py-4 text-sm font-bold text-white shadow-soft transition hover:bg-berit-dark" href="https://wa.me/5579981422536?text=Oi%2C%20Berit!%20Quero%20fazer%20um%20or%C3%A7amento." target="_blank" rel="noopener noreferrer" aria-label="Pedir orçamento pelo WhatsApp">◉<span>Orçamento</span></a>
 </body>
 </html>
