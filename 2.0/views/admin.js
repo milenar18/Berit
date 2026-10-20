@@ -11,23 +11,19 @@ const productPriceMarkup = product => {
 };
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const maxImageSize = 5 * 1024 * 1024;
-let mode = 'login';
+const recoveryParams = new URLSearchParams(location.hash.slice(1));
+const recoveryLinkError = recoveryParams.has('error') || new URLSearchParams(location.search).has('error');
+let mode = recoveryParams.get('type') === 'recovery' ? 'recovery' : 'login';
+let authBusy = false;
 let user = null;
 let products = [];
 let categories = [];
-let customers = [];
-let customersError = '';
-let cartItems = [];
 let editingProductId = null;
 let editingCategoryName = null;
 let productSearchQuery = '';
-let customerCategory = '';
 const adminPageSize = 6;
-const customerCatalogPageSize = 6;
-let customerPage = 1;
 let categoryPage = 1;
 let productPage = 1;
-let customerCatalogPage = 1;
 
 function message(element, text, error = false) {
   element.textContent = text;
@@ -50,17 +46,25 @@ function paginationMarkup(listName, page, totalPages) {
 }
 
 function renderAuth() {
-  const registering = mode === 'register';
-  const recovery = mode === 'recovery';
-  $('#authTitle').textContent = recovery ? 'Escolha uma nova senha' : registering ? 'Criar conta' : 'Entre na sua conta';
-  $('#authIntro').textContent = recovery ? 'Defina uma nova senha para sua conta.' : registering ? 'Crie sua conta para salvar seu carrinho.' : 'Entre para acessar seu carrinho ou administrar o catálogo.';
-  $('#nameWrap').classList.toggle('hidden', !registering);
-  $('#name').required = registering;
-  $('#passwordHint').textContent = registering || recovery ? 'Use pelo menos 8 caracteres.' : '';
-  $('#authSubmit').textContent = recovery ? 'Salvar nova senha' : registering ? 'Criar conta' : 'Entrar';
-  $('#modeToggle').classList.toggle('hidden', recovery);
-  $('#modeToggle').textContent = registering ? 'Já tem conta? Entrar' : 'Ainda não tem conta? Cadastre-se';
-  $('#forgotButton').classList.toggle('hidden', registering || recovery);
+  const recovery = mode === 'recovery' || mode === 'first-password';
+  $('#authTitle').textContent = recovery ? 'Escolha uma nova senha' : 'Login administrativo';
+  $('#authIntro').textContent = recovery ? 'Defina uma nova senha para sua conta administrativa.' : 'Acesso exclusivo para administradores da Berit.';
+  $('#emailField').classList.toggle('hidden', recovery);
+  $('#email').disabled = recovery;
+  $('#email').required = !recovery;
+  $('#confirmPasswordField').classList.toggle('hidden', !recovery);
+  $('#confirmPassword').disabled = !recovery;
+  $('#confirmPassword').required = recovery;
+  if (mode === 'first-password') {
+    $('#authTitle').textContent = 'Troque sua senha provisória';
+    $('#authIntro').textContent = 'Para acessar o painel, defina uma senha pessoal diferente da senha provisória.';
+  }
+  $('#passwordHint').textContent = recovery ? 'Use pelo menos 6 caracteres.' : '';
+  $('#password').minLength = recovery ? 6 : 1;
+  $('#confirmPassword').minLength = 6;
+  $('#password').autocomplete = recovery ? 'new-password' : 'current-password';
+  $('#authSubmit').textContent = recovery ? 'Salvar nova senha' : 'Entrar';
+  $('#forgotButton').classList.toggle('hidden', recovery);
 }
 
 function normalizeProduct(row) { return { ...row, image: imageUrl(row.image_path) }; }
@@ -80,48 +84,45 @@ async function loadProducts() {
   return CatalogModel.getProducts();
 }
 
-async function loadCustomers() {
-  const { data, error } = await supabase.from('profiles').select('id,display_name,created_at').eq('role', 'customer').order('created_at', { ascending: false });
-  if (error) {
-    customers = [];
-    customersError = error.message;
-  } else {
-    customers = data || [];
-    customersError = '';
-  }
-  renderAdminCustomers();
-}
-
-function renderAdminCustomers() {
-  const visible = customers;
-  const list = $('#customerList');
-  const recent = $('#recentCustomers');
-  $('#customerCount').textContent = customers.length;
-  $('#customerListCount').textContent = `${visible.length} ${visible.length === 1 ? 'cliente' : 'clientes'}`;
-  if (customersError) {
-    const errorMarkup = `<p class="rounded-2xl bg-red-50 p-4 text-sm text-red-700">Não foi possível carregar clientes: ${escapeHtml(customersError)}</p>`;
-    list.innerHTML = errorMarkup;
-    $('#customerPagination').innerHTML = '';
-    recent.innerHTML = errorMarkup;
-    return;
-  }
-  const item = customer => `<article class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-berit-line p-4"><div><strong class="block text-sm">${escapeHtml(customer.display_name || 'Cliente')}</strong><span class="mt-1 block text-xs text-berit-muted">Cadastro em ${new Date(customer.created_at).toLocaleDateString('pt-BR')}</span></div><span class="rounded-full bg-berit-cream px-3 py-1 text-xs font-semibold text-berit-green">Cliente</span></article>`;
-  const pagedCustomers = pageItems(visible, customerPage);
-  customerPage = pagedCustomers.page;
-  list.innerHTML = visible.length ? pagedCustomers.items.map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Nenhum cliente encontrado.</p>';
-  $('#customerPagination').innerHTML = paginationMarkup('clientes', customerPage, pagedCustomers.totalPages);
-  recent.innerHTML = customers.length ? customers.slice(0, 4).map(item).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm text-berit-muted">Ainda não há clientes cadastrados.</p>';
-}
-
 function showAdminPanel(panelId) {
-  ['adminOverview', 'adminCustomers', 'adminCategories', 'adminProducts'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== panelId));
+  ['adminOverview', 'adminCategories', 'adminProducts', 'adminAdministrators'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== panelId));
   document.querySelectorAll('.admin-tab').forEach(button => {
     const selected = button.dataset.adminTab === panelId;
     button.setAttribute('aria-selected', String(selected));
     button.tabIndex = selected ? 0 : -1;
   });
   setAdminSidebarOpen(false);
+  if (panelId === 'adminAdministrators') loadAdministrators();
 }
+
+async function loadAdministrators() {
+  const button = $('#refreshAdministrators');
+  if (button.disabled) return;
+  button.disabled = true;
+  $('#administratorsList').replaceChildren();
+  message($('#administratorsMessage'), 'Carregando administradores…');
+  try {
+    const { data, error } = await supabase.from('profiles')
+      .select('id,display_name,created_at,must_change_password')
+      .eq('role', 'admin').order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!user || $('#adminPanel').classList.contains('hidden')) return;
+    const administrators = data || [];
+    $('#administratorsList').innerHTML = administrators.map(admin => {
+      const date = new Date(admin.created_at).toLocaleDateString('pt-BR');
+      return `<li class="rounded-2xl border border-berit-line p-4"><div class="flex flex-wrap items-center justify-between gap-2"><strong class="min-w-0 break-words text-sm">${escapeHtml(admin.display_name || 'Administrador sem nome')}${admin.id === user.id ? ' (você)' : ''}</strong><span class="rounded-full bg-berit-lime px-3 py-1 text-xs font-semibold text-berit-dark">${admin.must_change_password ? 'Troca de senha pendente' : 'Acesso liberado'}</span></div><p class="mt-2 text-xs text-berit-muted">Cadastrado em ${escapeHtml(date)}</p></li>`;
+    }).join('');
+    message($('#administratorsMessage'), administrators.length
+      ? `${administrators.length} ${administrators.length === 1 ? 'administrador cadastrado' : 'administradores cadastrados'}.`
+      : 'Nenhum administrador cadastrado.');
+  } catch (error) {
+    message($('#administratorsMessage'), 'Não foi possível carregar os administradores. Clique em Atualizar para tentar novamente.', true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+$('#refreshAdministrators').addEventListener('click', loadAdministrators);
 
 function setAdminSidebarOpen(open) {
   const wasOpen = !$('#adminSidebar').classList.contains('-translate-x-full');
@@ -130,24 +131,6 @@ function setAdminSidebarOpen(open) {
   $('#adminMenuToggle').setAttribute('aria-expanded', String(open));
   document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
   if (!open && wasOpen && window.matchMedia('(max-width: 1023px)').matches) $('#adminMenuToggle').focus();
-}
-
-function showCustomerSection(sectionId) {
-  ['customerOverview', 'customerOrders', 'customerSupport'].forEach(id => $(`#${id}`).classList.toggle('hidden', id !== sectionId));
-  document.querySelectorAll('.customer-nav-link').forEach(button => {
-    if (button.dataset.customerSection === sectionId) button.setAttribute('aria-current', 'page');
-    else button.removeAttribute('aria-current');
-  });
-  setCustomerSidebarOpen(false);
-}
-
-function setCustomerSidebarOpen(open) {
-  const wasOpen = !$('#customerSidebar').classList.contains('-translate-x-full');
-  $('#customerSidebar').classList.toggle('-translate-x-full', !open);
-  $('#customerScrim').classList.toggle('hidden', !open);
-  $('#customerMenuToggle').setAttribute('aria-expanded', String(open));
-  document.body.classList.toggle('overflow-hidden', open && window.matchMedia('(max-width: 1023px)').matches);
-  if (!open && wasOpen && window.matchMedia('(max-width: 1023px)').matches) $('#customerMenuToggle').focus();
 }
 
 function renderAdminProducts() {
@@ -189,90 +172,50 @@ function renderAdminProducts() {
   $('#categoryPagination').innerHTML = paginationMarkup('categorias', categoryPage, pagedCategories.totalPages);
 }
 
-function renderCustomerCatalog(query = '') {
-  const normalized = query.trim().toLocaleLowerCase('pt-BR');
-  const allProducts = CatalogModel.getProducts();
-  $('#customerCategoryFilter').innerHTML = '<option value="">Todas as categorias</option>' + categories.map(category => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.name)}</option>`).join('');
-  $('#customerCategoryFilter').value = customerCategory;
-  const visible = allProducts.filter(item => (!customerCategory || item.category === customerCategory) && (!normalized || `${item.name} ${item.category} ${item.detail}`.toLocaleLowerCase('pt-BR').includes(normalized)));
-  const totalPages = Math.max(1, Math.ceil(visible.length / customerCatalogPageSize));
-  customerCatalogPage = Math.min(Math.max(1, customerCatalogPage), totalPages);
-  const start = visible.length ? (customerCatalogPage - 1) * customerCatalogPageSize : 0;
-  const pageItems = visible.slice(start, start + customerCatalogPageSize);
-  $('#customerProductCount').textContent = visible.length
-    ? `${start + 1}–${Math.min(start + customerCatalogPageSize, visible.length)} de ${visible.length} ${visible.length === 1 ? 'produto' : 'produtos'}`
-    : 'Nenhum produto';
-  $('#customerCatalog').innerHTML = pageItems.length ? pageItems.map(item => {
-    const quantity = cartItems.find(cartItem => cartItem.product_key === item.id)?.quantity || 0;
-    return `<article class="group overflow-hidden rounded-2xl border border-berit-line bg-white transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(48,56,34,.10)]"><div class="relative overflow-hidden bg-berit-cream"><img class="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.03]" src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy">${quantity ? `<span class="absolute right-3 top-3 rounded-full bg-white px-3 py-1 text-xs font-bold text-berit-green shadow">${quantity} no carrinho</span>` : ''}</div><div class="p-4"><span class="text-[10px] font-bold uppercase tracking-widest text-berit-green">${escapeHtml(item.category)}</span><h3 class="mt-1 font-serif text-lg">${escapeHtml(item.name)}</h3><p class="mt-2 min-h-10 text-xs leading-5 text-berit-muted">${escapeHtml(item.detail)}</p><button class="add-to-cart mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-berit-green px-4 py-3 text-xs font-bold text-white transition hover:bg-berit-dark" data-id="${escapeHtml(item.id)}">${quantity ? 'Adicionar mais +' : 'Adicionar ao carrinho +'}</button></div></article>`;
-  }).join('') : '<p class="col-span-full rounded-2xl bg-berit-cream p-5 text-sm text-berit-muted">Nenhum produto encontrado. Tente outro termo ou categoria.</p>';
-  $('#customerCatalogPagination').innerHTML = totalPages > 1
-    ? `<nav class="mt-6 flex items-center justify-between gap-3 border-t border-berit-line pt-4" aria-label="Paginação do catálogo"><span class="text-xs text-berit-muted">Página ${customerCatalogPage} de ${totalPages}</span><div class="flex items-center gap-2"><button type="button" class="customer-catalog-page rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-page-direction="previous" ${customerCatalogPage === 1 ? 'disabled' : ''} aria-label="Página anterior do catálogo">Anterior</button><button type="button" class="customer-catalog-page rounded-full border border-berit-line px-4 py-2 text-xs font-semibold text-berit-green disabled:cursor-not-allowed disabled:opacity-40" data-page-direction="next" ${customerCatalogPage === totalPages ? 'disabled' : ''} aria-label="Próxima página do catálogo">Próxima</button></div></nav>`
-    : '';
-}
-
-function renderCart() {
-  const count = cartItems.reduce((total, item) => total + item.quantity, 0);
-  $('#cartCount').textContent = `${count} ${count === 1 ? 'item' : 'itens'}`;
-  $('#shoppingCart').innerHTML = cartItems.length ? cartItems.map(item => `<article class="flex items-center gap-3 rounded-2xl border border-berit-line p-3"><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="h-14 w-14 shrink-0 rounded-xl object-cover"><div class="min-w-0 flex-1"><strong class="block truncate text-sm">${escapeHtml(item.name)}</strong><span class="block truncate text-xs text-berit-muted">${escapeHtml(item.category)}</span><div class="mt-2 inline-flex items-center gap-3 rounded-full bg-berit-cream px-2 py-1"><button class="cart-quantity flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-berit-green" aria-label="Diminuir quantidade de ${escapeHtml(item.name)}" data-action="decrease" data-id="${escapeHtml(item.product_key)}">−</button><span class="min-w-4 text-center text-xs font-semibold">${item.quantity}</span><button class="cart-quantity flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-berit-green" aria-label="Aumentar quantidade de ${escapeHtml(item.name)}" data-action="increase" data-id="${escapeHtml(item.product_key)}">+</button></div></div><button class="cart-remove self-start px-1 text-lg leading-none text-berit-muted transition hover:text-red-700" aria-label="Remover ${escapeHtml(item.name)}" title="Remover" data-id="${escapeHtml(item.product_key)}">×</button></article>`).join('') : '<p class="rounded-2xl bg-berit-cream p-4 text-sm leading-6 text-berit-muted">Seu carrinho está vazio. Adicione os produtos que deseja incluir no orçamento.</p>';
-  const checkout = $('#checkoutButton');
-  checkout.classList.toggle('hidden', !cartItems.length);
-  checkout.classList.toggle('flex', Boolean(cartItems.length));
-  const details = cartItems.map(item => `• ${item.name} (${item.category}) — quantidade: ${item.quantity}`).join('\n');
-  checkout.href = `https://wa.me/5579981422536?text=${encodeURIComponent(`Oi, Berit! Tenho interesse nestes produtos:\n${details}\n\nGostaria de solicitar um orçamento.`)}`;
-  renderCustomerCatalog($('#catalogSearch').value);
-}
-
-async function loadCart() {
-  const { data, error } = await supabase.from('cart_items').select('*').eq('user_id', user.id).order('updated_at', { ascending: false });
-  if (error) throw error;
-  cartItems = data || [];
-  renderCart();
+async function requireAdmin() {
+  const { data, error } = await supabase.auth.getUser();
+  const currentUser = data?.user;
+  const profile = currentUser && !error
+    ? await supabase.from('profiles').select('role,must_change_password').eq('id', currentUser.id).single()
+    : null;
+  if (!profile || profile.error || profile.data?.role !== 'admin') {
+    user = null;
+    showAuth();
+    await supabase.auth.signOut({ scope: 'local' });
+    throw new Error('Acesso restrito a administradores.');
+  }
+  user = currentUser;
+  if (profile.data.must_change_password && mode !== 'recovery' && mode !== 'first-password') {
+    mode = 'first-password';
+    $('#authForm').reset();
+    renderAuth();
+    message($('#authMessage'), 'A troca da senha provisória é obrigatória.');
+  }
 }
 
 async function showSignedIn() {
-  user = (await supabase.auth.getUser()).data.user;
-  if (!user) return showAuth();
-  const profileResult = await supabase.from('profiles').select('display_name,role').eq('id', user.id).single();
-  if (profileResult.error) throw profileResult.error;
-  const isAdmin = profileResult.data.role === 'admin';
+  showAuth();
+  await requireAdmin();
+  if (mode === 'recovery' || mode === 'first-password') return;
   await loadProducts();
-  if (isAdmin) {
-    await loadCustomers();
-  } else {
-    await loadCart();
-  }
-
   $('#authPanel').classList.add('hidden');
-  $('#adminHeaderActions').classList.toggle('hidden', !isAdmin);
-  $('#adminHeaderActions').classList.toggle('flex', isAdmin);
-  $('#customerMenuToggle').classList.toggle('hidden', isAdmin);
-  $('#adminMenuToggle').style.display = isAdmin ? '' : 'none';
-  $('#accountBackLink').classList.toggle('hidden', isAdmin);
-  if (isAdmin) {
-    $('#customerPanel').classList.add('hidden');
-    $('#adminPanel').classList.remove('hidden');
-    renderAdminProducts();
-    renderAdminCustomers();
-    showAdminPanel('adminOverview');
-  } else {
-    $('#adminPanel').classList.add('hidden');
-    $('#customerPanel').classList.remove('hidden');
-    $('#greeting').textContent = profileResult.data.display_name || user.email || 'cliente';
-    showCustomerSection('customerOverview');
-    renderCustomerCatalog();
-  }
+  $('#adminHeaderActions').classList.remove('hidden');
+  $('#adminHeaderActions').classList.add('flex');
+  $('#adminMenuToggle').style.display = '';
+  $('#accountBackLink').classList.add('hidden');
+  $('#adminPanel').classList.remove('hidden');
+  renderAdminProducts();
+  showAdminPanel('adminOverview');
 }
 
 function showAuth() {
   $('#authPanel').classList.remove('hidden');
   $('#adminPanel').classList.add('hidden');
-  $('#customerPanel').classList.add('hidden');
   $('#adminHeaderActions').classList.add('hidden');
   $('#adminHeaderActions').classList.remove('flex');
-  $('#customerMenuToggle').classList.add('hidden');
-  $('#adminMenuToggle').style.display = '';
+  $('#adminMenuToggle').style.display = 'none';
   $('#accountBackLink').classList.remove('hidden');
+  setAdminSidebarOpen(false);
 }
 
 function imageFileError(file) {
@@ -308,50 +251,59 @@ function resetCategoryForm() {
   $('#categoryImageHint').textContent = 'JPG, PNG ou WebP; até 5 MB.';
 }
 
-$('#modeToggle').addEventListener('click', () => { mode = mode === 'login' ? 'register' : 'login'; message($('#authMessage'), ''); renderAuth(); });
 $('#authForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!isConfigured()) return message($('#authMessage'), 'Adicione a chave publishable do Supabase em assets/js/supabase-config.js.', true);
   const email = $('#email').value.trim().toLowerCase();
+  if (authBusy) return;
   const password = $('#password').value;
+  if ((mode === 'recovery' || mode === 'first-password') && password !== $('#confirmPassword').value) return message($('#authMessage'), 'As senhas não coincidem.', true);
+  authBusy = true;
+  $('#authSubmit').disabled = true;
+  $('#forgotButton').disabled = true;
   try {
     let result;
-    if (mode === 'recovery') {
+    if (mode === 'recovery' || mode === 'first-password') {
+      await requireAdmin();
       result = await supabase.auth.updateUser({ password });
       if (result.error) throw result.error;
       mode = 'login';
       await supabase.auth.signOut();
+      $('#authForm').reset();
       renderAuth();
       return message($('#authMessage'), 'Senha atualizada. Entre com a nova senha.');
-    } else if (mode === 'register') {
-      result = await supabase.auth.signUp({ email, password, options: { data: { name: $('#name').value.trim() } } });
-      if (result.error) throw result.error;
-      if (!result.data.session) return message($('#authMessage'), 'Cadastro iniciado. Confirme o link enviado ao seu e-mail e depois entre.');
     } else {
       result = await supabase.auth.signInWithPassword({ email, password });
       if (result.error) throw result.error;
     }
     await showSignedIn();
   } catch (error) { message($('#authMessage'), error.message || 'Não foi possível acessar sua conta.', true); }
+  finally { authBusy = false; $('#authSubmit').disabled = false; $('#forgotButton').disabled = false; }
 });
 
 $('#forgotButton').addEventListener('click', async () => {
+  if (authBusy) return;
+  if (!isConfigured()) return message($('#authMessage'), 'A recuperação está indisponível. Entre em contato com a Berit.', true);
+  if (!$('#email').reportValidity()) return;
   const email = $('#email').value.trim().toLowerCase();
-  if (!email) return message($('#authMessage'), 'Informe seu e-mail para receber o link de redefinição.', true);
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}${location.pathname}` });
-  message($('#authMessage'), error ? error.message : 'Se esse e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.', Boolean(error));
+  authBusy = true;
+  $('#forgotButton').disabled = true;
+  $('#authSubmit').disabled = true;
+  message($('#authMessage'), 'Enviando link de recuperação…');
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    if (error) throw error;
+    message($('#authMessage'), 'Se esse e-mail estiver cadastrado, enviaremos um link para redefinir sua senha. Confira também a pasta de spam.');
+  } catch (error) {
+    message($('#authMessage'), error.status === 429 ? 'Aguarde alguns minutos antes de solicitar outro link.' : 'Não foi possível enviar o link. Tente novamente em alguns minutos.', true);
+  } finally {
+    authBusy = false;
+    $('#forgotButton').disabled = false;
+    $('#authSubmit').disabled = false;
+  }
 });
 
 document.querySelectorAll('.logout').forEach(button => button.addEventListener('click', async () => { await supabase.auth.signOut(); location.reload(); }));
-$('#catalogSearch').addEventListener('input', event => {
-  customerCatalogPage = 1;
-  renderCustomerCatalog(event.target.value);
-});
-$('#customerCategoryFilter').addEventListener('change', event => {
-  customerCategory = event.target.value;
-  customerCatalogPage = 1;
-  renderCustomerCatalog($('#catalogSearch').value);
-});
 $('#productSearch').addEventListener('input', event => {
   productSearchQuery = event.target.value;
   productPage = 1;
@@ -365,10 +317,7 @@ $('#adminPanel').addEventListener('click', event => {
   if (paginationButton && !paginationButton.disabled) {
     const pageDelta = paginationButton.dataset.direction === 'next' ? 1 : -1;
     const listName = paginationButton.dataset.pagination;
-    if (listName === 'clientes') {
-      customerPage += pageDelta;
-      renderAdminCustomers();
-    } else if (listName === 'categorias') {
+    if (listName === 'categorias') {
       categoryPage += pageDelta;
       renderAdminProducts();
     } else if (listName === 'produtos') {
@@ -395,51 +344,9 @@ $('#adminSidebar').addEventListener('keydown', event => {
   showAdminPanel(tabs[nextIndex].dataset.adminTab);
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches && !$('#customerSidebar').classList.contains('-translate-x-full')) {
-    setCustomerSidebarOpen(false);
-  }
   if (event.key === 'Escape' && window.matchMedia('(max-width: 1023px)').matches && !$('#adminSidebar').classList.contains('-translate-x-full')) {
     setAdminSidebarOpen(false);
   }
-});
-
-$('#customerMenuToggle').addEventListener('click', () => setCustomerSidebarOpen($('#customerSidebar').classList.contains('-translate-x-full')));
-$('#customerMenuClose').addEventListener('click', () => setCustomerSidebarOpen(false));
-$('#customerScrim').addEventListener('click', () => setCustomerSidebarOpen(false));
-$('#customerPanel').addEventListener('click', event => {
-  const pageButton = event.target.closest('.customer-catalog-page');
-  if (pageButton && !pageButton.disabled) {
-    customerCatalogPage += pageButton.dataset.pageDirection === 'next' ? 1 : -1;
-    renderCustomerCatalog($('#catalogSearch').value);
-    $('#customerCatalogSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    return;
-  }
-  const button = event.target.closest('[data-customer-section]');
-  if (button) showCustomerSection(button.dataset.customerSection);
-});
-
-$('#customerCatalog').addEventListener('click', async event => {
-  const button = event.target.closest('.add-to-cart');
-  if (!button) return;
-  const product = CatalogModel.getProducts().find(item => item.id === button.dataset.id);
-  const existing = cartItems.find(item => item.product_key === product.id);
-  const row = { user_id: user.id, product_key: product.id, name: product.name, category: product.category, detail: product.detail, image: product.image, quantity: Math.min(99, (existing?.quantity || 0) + 1), updated_at: new Date().toISOString() };
-  const { error } = await supabase.from('cart_items').upsert(row, { onConflict: 'user_id,product_key' });
-  if (error) return message($('#shoppingCart'), error.message, true);
-  await loadCart();
-});
-
-$('#shoppingCart').addEventListener('click', async event => {
-  const button = event.target.closest('.cart-remove, .cart-quantity');
-  if (!button) return;
-  const item = cartItems.find(row => row.product_key === button.dataset.id);
-  if (!item) return;
-  const remove = button.classList.contains('cart-remove') || (button.dataset.action === 'decrease' && item.quantity === 1);
-  const result = remove
-    ? await supabase.from('cart_items').delete().eq('user_id', user.id).eq('product_key', item.product_key)
-    : await supabase.from('cart_items').update({ quantity: Math.min(99, item.quantity + (button.dataset.action === 'increase' ? 1 : -1)), updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('product_key', item.product_key);
-  if (result.error) return message($('#shoppingCart'), result.error.message, true);
-  await loadCart();
 });
 
 $('#productForm').addEventListener('submit', async event => {
@@ -585,12 +492,48 @@ $('#cancelCategoryEdit').addEventListener('click', resetCategoryForm);
 
 renderAuth();
 if (!isConfigured()) message($('#authMessage'), 'A configuração do Supabase está incompleta. Veja o README para conectar o projeto.', true);
+showAuth();
 supabase.auth.onAuthStateChange(event => {
+  if (event === 'SIGNED_OUT') { user = null; mode = 'login'; renderAuth(); showAuth(); }
   if (event === 'PASSWORD_RECOVERY') {
     mode = 'recovery';
     showAuth();
     renderAuth();
-    message($('#authMessage'), 'Informe uma nova senha.');
+    $('#authForm').reset();
+    history.replaceState(null, '', location.pathname);
+    message($('#authMessage'), 'Informe e confirme uma nova senha.');
   }
 });
-supabase.auth.getSession().then(({ data, error }) => error ? message($('#authMessage'), error.message, true) : data.session ? showSignedIn().catch(err => message($('#authMessage'), err.message, true)) : showAuth());
+supabase.auth.getSession().then(async ({ data, error }) => {
+  if (recoveryLinkError || error || (mode === 'recovery' && !data.session)) {
+    mode = 'login';
+    renderAuth();
+    showAuth();
+    history.replaceState(null, '', location.pathname);
+    message($('#authMessage'), 'O link de recuperação é inválido ou expirou. Informe seu e-mail e solicite um novo link.', true);
+    return;
+  }
+  if (data.session) await showSignedIn();
+  else showAuth();
+}).catch(error => message($('#authMessage'), error.message || 'Não foi possível verificar sua sessão.', true));
+
+$('#newAdminForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = $('#newAdminSubmit');
+  if (button.disabled) return;
+  button.disabled = true;
+  message($('#newAdminMessage'), 'Cadastrando administrador…');
+  try {
+    const { data, error } = await supabase.functions.invoke('create-admin', { body: {
+      name: $('#newAdminName').value.trim(), email: $('#newAdminEmail').value.trim(), password: $('#newAdminPassword').value
+    } });
+    if (error) {
+      const detail = await error.context?.json?.().catch(() => null);
+      throw new Error(detail?.error || 'Não foi possível cadastrar o administrador. Tente novamente.');
+    }
+    $('#newAdminForm').reset();
+    message($('#newAdminMessage'), data.message);
+    await loadAdministrators();
+  } catch (error) { message($('#newAdminMessage'), error.message, true); }
+  finally { button.disabled = false; }
+});

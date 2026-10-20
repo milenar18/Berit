@@ -5,25 +5,30 @@ import { supabase, imageUrl } from '../assets/js/supabase-client.js';
 
 const controller = (() => {
   const state = { category: 'Todos', query: '', sort: 'featured' };
-  let accountRenderVersion = 0;
-
   function render() { view.renderProducts(model.getProducts(state)); }
-  async function renderAccountLink(user) {
-    const version = ++accountRenderVersion;
-    const link = document.querySelector('#accountLink');
-    const label = document.querySelector('#accountLinkLabel');
-    if (!user) {
-      label.textContent = 'Entrar';
-      link.setAttribute('aria-label', 'Entrar na área da conta');
-      return;
-    }
 
-    let name = user.user_metadata?.name || user.user_metadata?.full_name;
-    const { data } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
-    if (version !== accountRenderVersion) return;
-    name = (data?.display_name || name || user.email?.split('@')[0] || 'Minha conta').trim().split(/\s+/)[0];
-    label.textContent = `Olá, ${name}`;
-    link.setAttribute('aria-label', `Abrir conta de ${name}`);
+  let adminSessionVersion = 0;
+  async function renderAdminSession() {
+    const version = ++adminSessionVersion;
+    const welcome = document.querySelector('#adminWelcome');
+    const name = document.querySelector('#adminFirstName');
+    const quoteButton = document.querySelector('header .header-cta');
+    welcome.hidden = true;
+    quoteButton.hidden = false;
+    name.textContent = '';
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data?.user || version !== adminSessionVersion) return;
+      const { data: profile, error: profileError } = await supabase.from('profiles')
+        .select('display_name,role').eq('id', data.user.id).single();
+      if (profileError || profile?.role !== 'admin' || version !== adminSessionVersion) return;
+      const fullName = profile.display_name?.trim() || data.user.user_metadata?.name?.trim() || data.user.email?.split('@')[0] || 'Administrador';
+      name.textContent = fullName.split(/\s+/)[0];
+      quoteButton.hidden = true;
+      welcome.hidden = false;
+    } catch {
+      // Authentication failures must not interrupt the public catalog.
+    }
   }
 
   function setCategory(category) {
@@ -35,11 +40,10 @@ const controller = (() => {
   }
 
   function initialize() {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) {
-        queueMicrotask(() => renderAccountLink(session?.user || null));
-      }
+    supabase.auth.onAuthStateChange(() => {
+      queueMicrotask(renderAdminSession);
     });
+    renderAdminSession();
     view.renderCategories(model.getCategories(), state.category);
     render();
     Promise.all([

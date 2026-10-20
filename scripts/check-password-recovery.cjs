@@ -1,0 +1,32 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const source = fs.readFileSync('2.0/views/admin.js', 'utf8');
+const elements = new Map();
+const $ = selector => {
+  if (!elements.has(selector)) elements.set(selector, { classList: { toggle(name, value) { this[name] = value; } } });
+  return elements.get(selector);
+};
+const render = source.slice(source.indexOf('function renderAuth()'), source.indexOf('function normalizeProduct'));
+const context = vm.createContext({ $, mode: 'recovery' });
+vm.runInContext(render + '\nrenderAuth();', context);
+assert.equal($('#email').disabled, true);
+assert.equal($('#email').required, false);
+assert.equal($('#confirmPassword').required, true);
+assert.equal($('#password').autocomplete, 'new-password');
+assert.equal($('#authSubmit').textContent, 'Salvar nova senha');
+context.mode = 'login';
+vm.runInContext('renderAuth()', context);
+assert.equal($('#email').disabled, false);
+assert.equal($('#email').required, true);
+assert.equal($('#confirmPassword').disabled, true);
+assert.equal($('#password').autocomplete, 'current-password');
+console.log('PASS: recovery and login field requirements, confirmation and autocomplete.');
+
+context.mode = 'first-password';
+vm.runInContext('renderAuth()', context);
+assert.equal($('#email').disabled, true);
+assert.equal($('#confirmPassword').required, true);
+assert.equal($('#password').minLength, 6);
+assert.equal($('#authTitle').textContent, 'Troque sua senha provisória');
+console.log('PASS: mandatory first password form.');

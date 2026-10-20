@@ -1,5 +1,96 @@
 /* Ajustes que complementam as classes responsivas do Tailwind no portal. */
+header .header-cta[hidden] {
+  display: none !important;
+}
+#adminWelcome:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .15rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+header:has(#adminWelcome:not([hidden])) .header-cta {
+  display: none;
+}
+@media (max-width: 1023px) {
+  header > div:has(#adminWelcome:not([hidden])) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  #adminWelcome {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  #adminWelcome a { font-size: 11px; }
+}
+@media (min-width: 1024px) {
+  header:has(#adminWelcome:not([hidden])) .search {
+    max-width: min(28rem, calc(100% - 40rem));
+  }
+}
 /* Menu lateral: mesma cor verde dos botões, com tipografia branca. */
+#sidebar {
+  flex-shrink: 0;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+#sidebar > * {
+  flex-shrink: 0;
+}
+#sidebar .side-link {
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 11px 12px;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+#sidebar {
+  padding: 20px 18px 16px;
+}
+#sidebar .side-heading {
+  margin-bottom: 8px;
+  font-size: 10px;
+}
+#sidebar .side-heading.border-t {
+  margin-top: 8px;
+  padding-top: 14px;
+  padding-bottom: 8px;
+}
+#sidebar .side-categories > * + * {
+  margin-top: 0;
+}
+#sidebar .side-card {
+  margin-top: 16px;
+  min-height: 190px;
+  padding: 14px;
+}
+#sidebar .side-categories {
+  margin-bottom: 0;
+}
+#sidebar .side-card .sparkle {
+  display: none;
+}
+#sidebar .side-card h3 {
+  margin-top: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+#sidebar .side-card p {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+#sidebar .side-card a {
+  margin-top: 10px;
+  font-size: 12px;
+}
+#sidebar .sidebar-bottom {
+  margin-top: 0;
+  padding-top: 20px;
+  font-size: 11px;
+  line-height: 1.5;
+}
 .sidebar {
   background-color: #65763a !important;
   color: #fff !important;
@@ -435,6 +526,10 @@ header > div, .page-shell { max-width: none !important; margin-left: 0 !importan
 @media (min-width: 1024px) {
   header > div {
     position: relative;
+  }
+
+  header .header-cta {
+    margin-left: auto;
   }
 
   header .search {

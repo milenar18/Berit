@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
+  <meta name="robots" content="noindex, nofollow">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f8f8f4">
-  <title>Minha conta — Berit</title>
+  <title>Administração — Berit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
@@ -19,12 +20,9 @@
     #adminSidebar .side-link:focus-visible,#adminSidebar .close-menu:focus-visible,#adminMenuToggle:focus-visible{outline:3px solid #dfe8b7;outline-offset:3px}
     #adminSidebar .side-rule{border-color:rgba(255,255,255,.28)}
     #adminSidebar nav{display:grid;gap:5px}
+    #adminSidebar{overflow-y:auto;overscroll-behavior:contain}
+    #adminSidebar .side-link [aria-hidden="true"]{display:inline-flex;width:20px;flex-shrink:0;align-items:center;justify-content:center}
     #adminPanel [role="tabpanel"]:focus{outline:none}
-    #customerSidebar{background:#65763a;color:#fff;border-color:rgba(255,255,255,.22)}
-    #customerSidebar .customer-nav-link{color:#fff;min-height:46px;transition:background .2s,transform .2s}
-    #customerSidebar .customer-nav-link[aria-current="page"],#customerSidebar .customer-nav-link:hover{background:rgba(255,255,255,.16)}
-    #customerSidebar .customer-nav-link:focus-visible,#customerMenuToggle:focus-visible,#customerMenuClose:focus-visible{outline:3px solid #dfe8b7;outline-offset:3px}
-    @media(prefers-reduced-motion:reduce){#customerSidebar .customer-nav-link{transition:none}}
     @media(prefers-reduced-motion:reduce){#adminSidebar .side-link{transition:none}}
   </style>
   <script type="module" src="admin.js"></script>
@@ -36,7 +34,6 @@
 <body class="min-h-screen bg-berit-cream font-sans text-berit-ink">
   <header class="sticky top-0 z-30 border-b border-berit-line bg-white/95 backdrop-blur">
     <div class="flex min-h-[72px] w-full flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:flex-nowrap lg:px-8">
-      <button id="customerMenuToggle" type="button" class="hidden rounded-full border border-berit-line p-2 text-berit-green lg:hidden" aria-label="Abrir menu do cliente" aria-expanded="false" aria-controls="customerSidebar">☰</button>
       <button id="adminMenuToggle" type="button" class="menu-toggle rounded-full border border-berit-line p-2 text-berit-green lg:hidden" aria-label="Abrir menu administrativo" aria-expanded="false" aria-controls="adminSidebar">☰</button>
       <a href="home.html" class="shrink-0" aria-label="Berit — página inicial"><img class="h-9 w-auto object-contain sm:h-11 lg:h-12" src="../assets/images/Logotipo_nome.png" alt="Berit Brindes & Presentes"></a>
       <a id="accountBackLink" href="home.html" class="ml-auto inline-flex shrink-0 items-center gap-2 rounded-full border border-berit-line bg-white px-4 py-3 text-xs font-bold text-berit-green transition hover:border-berit-green sm:px-5 sm:text-sm">Voltar ao catálogo <span aria-hidden="true">↗</span></a>
@@ -48,86 +45,64 @@
   </header>
   <main class="w-full px-0 py-8">
     <section id="authPanel" class="mx-auto max-w-md rounded-3xl border border-berit-line bg-white p-7 shadow-sm sm:p-9">
-      <span class="text-xs font-bold tracking-[.18em] text-berit-green">ACESSO À CONTA</span>
-      <h1 id="authTitle" class="mt-3 font-serif text-3xl">Entre na sua conta</h1>
-      <p id="authIntro" class="mt-2 text-sm leading-6 text-berit-muted">Entre para acessar seu carrinho ou administrar o catálogo.</p>
+      <span class="text-xs font-bold tracking-[.18em] text-berit-green">ACESSO ADMINISTRATIVO</span>
+      <h1 id="authTitle" class="mt-3 font-serif text-3xl">Login administrativo</h1>
+      <p id="authIntro" class="mt-2 text-sm leading-6 text-berit-muted">Acesso exclusivo para administradores da Berit.</p>
       <form id="authForm" class="mt-6 space-y-4">
-        <label id="nameWrap" class="hidden block text-sm font-semibold">Nome completo<input id="name" maxlength="80" autocomplete="name" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
-        <label class="block text-sm font-semibold">E-mail<input id="email" type="email" required maxlength="160" autocomplete="email" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
-        <label class="block text-sm font-semibold">Senha<input id="password" type="password" required minlength="8" autocomplete="current-password" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"><span id="passwordHint" class="mt-2 block text-xs font-normal text-berit-muted">Use pelo menos 8 caracteres.</span></label>
+        <label id="emailField" class="block text-sm font-semibold">E-mail<input id="email" type="email" required maxlength="160" autocomplete="email" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
+        <label class="block text-sm font-semibold">Senha<input id="password" type="password" required minlength="6" autocomplete="current-password" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"><span id="passwordHint" class="mt-2 block text-xs font-normal text-berit-muted">Use pelo menos 6 caracteres.</span></label>
+        <label id="confirmPasswordField" class="hidden text-sm font-semibold">Confirme a nova senha<input id="confirmPassword" type="password" minlength="6" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-berit-line bg-berit-cream px-4 py-3 outline-none focus:border-berit-green"></label>
         <p id="authMessage" class="text-sm" role="status" aria-live="polite"></p>
         <button id="authSubmit" class="w-full rounded-full bg-berit-green px-5 py-3 font-bold text-white hover:bg-berit-dark">Entrar</button>
       </form>
-      <button id="modeToggle" type="button" class="mt-4 w-full text-sm font-semibold text-berit-green underline">Ainda não tem conta? Cadastre-se</button>
       <button id="forgotButton" type="button" class="mt-3 w-full text-sm font-semibold text-berit-muted underline">Esqueci minha senha</button>
-    </section>
-
-    <section id="customerPanel" class="mx-auto -mt-8 hidden max-w-[1600px]">
-      <div class="relative flex min-h-[calc(100vh-72px)] w-full">
-        <aside id="customerSidebar" class="fixed inset-y-0 left-0 z-50 flex w-[290px] -translate-x-full flex-col border-r px-6 pb-6 pt-8 transition-transform duration-300 lg:bottom-0 lg:left-0 lg:top-[72px] lg:h-auto lg:w-[250px] lg:translate-x-0" aria-label="Menu do cliente">
-          <div class="mb-5 flex items-center justify-between text-[11px] font-bold tracking-[.2em]"><span>MINHA CONTA</span><button id="customerMenuClose" type="button" class="text-2xl lg:hidden" aria-label="Fechar menu">×</button></div>
-          <nav class="grid gap-1" aria-label="Seções da conta">
-            <button type="button" class="customer-nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold" data-customer-section="customerOverview" aria-current="page"><span aria-hidden="true">⌂</span> Visão geral</button>
-            <button type="button" class="customer-nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-customer-section="customerOrders"><span aria-hidden="true">▤</span> Pedidos</button>
-            <button type="button" class="customer-nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-customer-section="customerSupport"><span aria-hidden="true">♡</span> Suporte</button>
-          </nav>
-          <div class="mt-auto pt-8 text-xs font-semibold">Berit Brindes & Presentes<br><span class="font-normal opacity-80">Feito com carinho para você.</span></div>
-        </aside>
-        <div id="customerScrim" class="fixed inset-0 z-40 hidden bg-black/40 backdrop-blur-[2px]" aria-hidden="true"></div>
-        <div class="min-w-0 flex-1 px-4 py-6 sm:px-8 lg:ml-[250px] lg:px-10">
-          <div class="mb-7 flex flex-wrap items-center justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ÁREA DO CLIENTE</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Olá, <span id="greeting">cliente</span></h1><p class="mt-2 text-sm text-berit-muted">Acompanhe seus pedidos e fale com a gente.</p></div><div class="flex gap-2"><a href="home.html" class="rounded-full border border-berit-line bg-white px-4 py-3 text-sm font-semibold text-berit-green">Página inicial ↗</a><button class="logout rounded-full border border-berit-line bg-white px-4 py-3 text-sm font-semibold transition hover:border-berit-green">Sair</button></div></div>
-          <section id="customerOverview" class="customer-section">
-            <div class="mb-5"><h2 class="font-serif text-2xl">O que você precisa fazer?</h2><p class="mt-1 text-sm text-berit-muted">Escolha uma opção para continuar.</p></div>
-            <div class="grid max-w-5xl gap-4 md:grid-cols-3">
-              <button type="button" class="rounded-2xl border border-berit-line bg-white p-5 text-left transition hover:-translate-y-1 hover:border-berit-green hover:shadow-sm" data-customer-section="customerOrders"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">01 · PEDIDOS</span><strong class="mt-2 block font-serif text-xl">Fazer um pedido</strong><span class="mt-2 block text-sm leading-5 text-berit-muted">Escolher produtos no catálogo e pedir orçamento.</span></button>
-              <button type="button" class="rounded-2xl border border-berit-line bg-white p-5 text-left transition hover:-translate-y-1 hover:border-berit-green hover:shadow-sm" data-customer-section="customerSupport"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">02 · SUPORTE</span><strong class="mt-2 block font-serif text-xl">Falar com a Berit</strong><span class="mt-2 block text-sm leading-5 text-berit-muted">Tirar dúvidas sobre pedido ou orçamento.</span></button>
-              <button type="button" class="rounded-2xl bg-berit-lime p-5 text-left transition hover:-translate-y-1 hover:shadow-sm" data-customer-section="customerOrders"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">03 · COMPRAR</span><strong class="mt-2 block font-serif text-xl">Explorar catálogo</strong><span class="mt-2 block text-sm leading-5 text-berit-muted">Escolher produtos e pedir orçamento.</span></button>
-            </div>
-          </section>
-          <section id="customerOrders" class="customer-section hidden">
-            <div class="mb-5 flex flex-wrap items-center justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">PEDIDOS</span><h2 class="mt-2 font-serif text-2xl">Escolha os produtos do seu pedido</h2></div><button type="button" class="rounded-full border border-berit-line bg-white px-4 py-2 text-sm font-semibold text-berit-green" data-customer-section="customerOverview">Voltar à visão geral</button></div>
-            <p class="mb-5 rounded-2xl bg-berit-lime p-4 text-sm leading-6 text-berit-ink">Adicione produtos ao carrinho e envie sua seleção pelo WhatsApp. A equipe Berit confirma disponibilidade, valores e entrega.</p>
-            <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <section id="customerCatalogSection" class="min-w-0 rounded-3xl border border-berit-line bg-white p-5 sm:p-7"><div class="flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Encontre seu presente</span><h2 class="mt-2 font-serif text-2xl">Catálogo de produtos</h2></div><span id="customerProductCount" class="text-sm text-berit-muted" aria-live="polite"></span></div><div class="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]"><label class="flex items-center gap-2 rounded-full border border-berit-line bg-berit-cream px-4 focus-within:border-berit-green"><span class="text-xl text-berit-green" aria-hidden="true">⌕</span><input id="catalogSearch" type="search" placeholder="Buscar por nome ou descrição" aria-label="Buscar produtos" class="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none placeholder:text-berit-muted"></label><select id="customerCategoryFilter" aria-label="Filtrar por categoria" class="rounded-full border border-berit-line bg-berit-cream px-4 py-3 text-sm outline-none focus:border-berit-green"><option value="">Todas as categorias</option></select></div><div id="customerCatalog" class="mt-6 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3"></div><div id="customerCatalogPagination"></div></section>
-              <aside class="h-fit rounded-3xl border border-berit-line bg-white p-5 shadow-sm sm:p-6 xl:sticky xl:top-24"><div class="flex items-center justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Sua seleção</span><h2 class="mt-1 font-serif text-2xl">Meu carrinho</h2></div><span id="cartCount" class="rounded-full bg-berit-lime px-3 py-1 text-xs font-bold text-berit-green">0 itens</span></div><div id="shoppingCart" class="mt-5 max-h-[55vh] space-y-3 overflow-y-auto pr-1"></div><div id="cartTotalWrap" class="mt-4 hidden items-center justify-between border-t border-berit-line pt-4"><span class="text-sm font-semibold">Total estimado</span><strong id="cartTotal" class="font-serif text-lg text-berit-green"></strong></div><p id="cartHint" class="mt-4 text-xs leading-5 text-berit-muted">Ajuste as quantidades e envie sua lista para receber um orçamento personalizado.</p><a id="checkoutButton" class="mt-5 hidden w-full items-center justify-center rounded-full bg-berit-green px-5 py-3 text-center text-sm font-bold text-white transition hover:bg-berit-dark" target="_blank" rel="noopener noreferrer">Pedir orçamento pelo WhatsApp ↗</a></aside>
-            </div>
-          </section>
-          <section id="customerSupport" class="customer-section hidden"><article class="rounded-3xl border border-berit-line bg-white p-6 sm:p-8"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Estamos aqui para ajudar</span><h2 class="mt-2 font-serif text-3xl">Suporte</h2><p class="mt-3 max-w-2xl text-sm leading-6 text-berit-muted">Fale com a equipe Berit para tirar dúvidas sobre produtos, orçamento ou um pedido. Se já fez uma solicitação, envie o nome e o telefone usados no contato para localizarmos a conversa.</p><div class="mt-6 grid gap-4 sm:grid-cols-2"><a class="rounded-2xl bg-berit-lime p-5 transition hover:-translate-y-1" href="https://wa.me/5579981422536?text=Oi%2C%20Berit!%20Preciso%20de%20ajuda%20com%20meu%20pedido." target="_blank" rel="noopener noreferrer"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Resposta direta</span><strong class="mt-2 block font-serif text-xl">WhatsApp ↗</strong><span class="mt-2 block text-sm text-berit-muted">Fale com a equipe sobre seu pedido ou orçamento.</span></a><a class="rounded-2xl border border-berit-line p-5 transition hover:-translate-y-1 hover:border-berit-green" href="https://www.instagram.com/beritbrindesepresentes" target="_blank" rel="noopener noreferrer"><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Acompanhe a Berit</span><strong class="mt-2 block font-serif text-xl">Instagram ↗</strong><span class="mt-2 block text-sm text-berit-muted">Veja novidades e envie uma mensagem.</span></a></div></article></section>
-        </div>
-      </div>
     </section>
 
     <section id="adminPanel" class="hidden">
       <div class="relative flex w-full">
         <aside id="adminSidebar" class="sidebar fixed inset-y-0 left-0 z-50 flex w-[290px] -translate-x-full flex-col border-r border-berit-line bg-white px-6 pb-6 pt-8 transition-transform duration-300 lg:fixed lg:bottom-0 lg:left-0 lg:top-[73px] lg:h-auto lg:w-[250px] lg:translate-x-0" aria-label="Menu administrativo">
           <div class="side-heading mb-4 flex items-center justify-between text-[11px] font-bold tracking-[.2em]"><span>ADMINISTRAÇÃO</span><button type="button" class="close-menu text-2xl lg:hidden" id="adminMenuClose" aria-label="Fechar menu">×</button></div>
-          <nav role="tablist" aria-label="Seções administrativas">
+          <nav role="tablist" aria-label="Seções administrativas" aria-orientation="vertical">
             <button id="adminTabOverview" type="button" class="side-link admin-tab flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold" data-admin-tab="adminOverview" role="tab" aria-controls="adminOverview" aria-selected="true" tabindex="0"><span aria-hidden="true">⌂</span> Visão geral</button>
-            <button id="adminTabCustomers" type="button" class="side-link admin-tab flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminCustomers" role="tab" aria-controls="adminCustomers" aria-selected="false" tabindex="-1"><span aria-hidden="true">♙</span> Clientes</button>
             <button id="adminTabCategories" type="button" class="side-link admin-tab flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminCategories" role="tab" aria-controls="adminCategories" aria-selected="false" tabindex="-1"><span aria-hidden="true">◈</span> Categorias</button>
             <button id="adminTabProducts" type="button" class="side-link admin-tab flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminProducts" role="tab" aria-controls="adminProducts" aria-selected="false" tabindex="-1"><span aria-hidden="true">▣</span> Produtos</button>
+            <button id="adminTabAdministrators" type="button" class="side-link admin-tab flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm" data-admin-tab="adminAdministrators" role="tab" aria-controls="adminAdministrators" aria-selected="false" tabindex="-1"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-2-4.5"/></svg></span> Administradores</button>
           </nav>
           <div class="sidebar-bottom mt-auto pt-8 text-xs font-semibold">Berit Brindes & Presentes<br><span class="font-normal">Feito com carinho para você.</span></div>
         </aside>
         <div id="adminScrim" class="fixed inset-0 z-40 hidden bg-black/40 backdrop-blur-[2px]" aria-hidden="true"></div>
         <div class="min-w-0 flex-1 px-4 sm:px-8 lg:ml-[250px] lg:px-12">
-      <div class="mb-7 flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ADMINISTRAÇÃO</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Painel administrativo</h1><p class="mt-2 text-sm text-berit-muted">Gerencie o catálogo, as categorias e as imagens da vitrine.</p></div></div>
+      <div class="mb-7 flex flex-wrap items-end justify-between gap-4"><div><span class="text-xs font-bold tracking-[.18em] text-berit-green">ADMINISTRAÇÃO</span><h1 class="mt-2 font-serif text-3xl sm:text-4xl">Painel administrativo</h1><p class="mt-2 text-sm text-berit-muted">Gerencie produtos, categorias e administradores da Berit.</p></div></div>
 
       <section id="adminOverview" role="tabpanel" aria-labelledby="adminTabOverview" tabindex="0">
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2">
           <article class="rounded-2xl border border-berit-line bg-white p-5"><span class="text-xs font-semibold uppercase tracking-widest text-berit-muted">Produtos</span><strong id="productCount" class="mt-2 block font-serif text-2xl">0 produtos cadastrados</strong></article>
           <article class="rounded-2xl border border-berit-line bg-white p-5"><span class="text-xs font-semibold uppercase tracking-widest text-berit-muted">Categorias</span><strong id="categoryCount" class="mt-2 block font-serif text-2xl">0</strong></article>
-          <article class="rounded-2xl border border-berit-line bg-white p-5"><span class="text-xs font-semibold uppercase tracking-widest text-berit-muted">Clientes</span><strong id="customerCount" class="mt-2 block font-serif text-2xl">0</strong></article>
         </div>
-        <article class="mt-6 rounded-3xl border border-berit-line bg-white p-6 sm:p-8"><div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Contas recentes</span><h2 class="mt-2 font-serif text-2xl">Novos clientes</h2></div><button type="button" class="open-admin-tab text-sm font-semibold text-berit-green underline" data-admin-tab="adminCustomers">Ver todos</button></div><div id="recentCustomers" class="mt-5 grid gap-3 sm:grid-cols-2"></div></article>
-        <div class="mt-6 flex flex-wrap gap-3"><button type="button" class="open-admin-tab rounded-full bg-berit-green px-5 py-3 text-sm font-bold text-white hover:bg-berit-dark" data-admin-tab="adminProducts">Gerenciar produtos</button><button type="button" class="open-admin-tab rounded-full border border-berit-line bg-white px-5 py-3 text-sm font-semibold" data-admin-tab="adminCategories">Gerenciar categorias</button><button type="button" class="open-admin-tab rounded-full border border-berit-line bg-white px-5 py-3 text-sm font-semibold" data-admin-tab="adminCustomers">Ver clientes</button></div>
+        <div class="mt-6 flex flex-wrap gap-3"><button type="button" class="open-admin-tab rounded-full bg-berit-green px-5 py-3 text-sm font-bold text-white hover:bg-berit-dark" data-admin-tab="adminProducts">Gerenciar produtos</button><button type="button" class="open-admin-tab rounded-full border border-berit-line bg-white px-5 py-3 text-sm font-semibold" data-admin-tab="adminCategories">Gerenciar categorias</button></div>
       </section>
 
-      <section id="adminCustomers" class="mt-0 hidden" role="tabpanel" aria-labelledby="adminTabCustomers" tabindex="0">
-        <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Relacionamento</span><h2 class="mt-2 font-serif text-3xl">Clientes</h2><p class="mt-1 text-sm text-berit-muted">Contas criadas no site e data de cadastro.</p></div></div>
-        <div class="mt-6 rounded-3xl border border-berit-line bg-white p-6 sm:p-8"><div class="flex items-center justify-between"><h3 class="font-serif text-xl">Lista de clientes</h3><span id="customerListCount" class="text-sm text-berit-muted"></span></div><div id="customerList" class="mt-4 space-y-3"></div><div id="customerPagination"></div></div>
+      <section id="adminAdministrators" class="hidden" role="tabpanel" aria-labelledby="adminTabAdministrators" tabindex="0">
+        <div class="mx-auto grid w-full max-w-6xl items-start gap-6 xl:grid-cols-2">
+        <form id="newAdminForm" class="mx-auto w-full max-w-xl space-y-4 rounded-3xl border border-berit-line bg-white p-6 sm:p-8">
+          <h2 class="font-serif text-2xl">Adicionar administrador</h2>
+          <p class="text-sm text-berit-muted">O novo administrador terá acesso completo ao painel após trocar a senha provisória no primeiro login.</p>
+          <label class="block text-sm font-semibold">Nome<input id="newAdminName" required maxlength="100" autocomplete="off" class="mt-2 w-full rounded-xl border border-berit-line px-4 py-3"></label>
+          <label class="block text-sm font-semibold">E-mail<input id="newAdminEmail" type="email" required maxlength="160" autocomplete="off" class="mt-2 w-full rounded-xl border border-berit-line px-4 py-3"></label>
+          <label class="block text-sm font-semibold">Senha provisória<input id="newAdminPassword" type="password" required minlength="6" maxlength="128" autocomplete="new-password" class="mt-2 w-full rounded-xl border border-berit-line px-4 py-3"><span class="mt-2 block text-xs font-normal text-berit-muted">Use pelo menos 6 caracteres e compartilhe a senha com segurança.</span></label>
+          <p id="newAdminMessage" class="text-sm" role="status" aria-live="polite"></p>
+          <button id="newAdminSubmit" class="rounded-full bg-berit-green px-5 py-3 font-bold text-white hover:bg-berit-dark">Cadastrar administrador</button>
+        </form>
+        <section class="mx-auto w-full max-w-xl rounded-3xl border border-berit-line bg-white p-6 sm:p-8" aria-labelledby="registeredAdminsTitle">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="registeredAdminsTitle" class="font-serif text-xl">Administradores cadastrados</h2>
+            <button id="refreshAdministrators" type="button" class="rounded-full border border-berit-line px-4 py-2 text-sm font-semibold text-berit-green disabled:opacity-50">Atualizar</button>
+          </div>
+          <p id="administratorsMessage" class="mt-3 text-sm text-berit-muted" role="status" aria-live="polite"></p>
+          <ul id="administratorsList" class="mt-4 space-y-3" aria-label="Administradores cadastrados"></ul>
+        </section>
+        </div>
       </section>
-
       <section id="adminCategories" class="mt-0 hidden" role="tabpanel" aria-labelledby="adminTabCategories" tabindex="0">
       <section class="mt-8 rounded-3xl border border-berit-line bg-white p-6 sm:p-8">
         <div class="flex flex-wrap items-end justify-between gap-3"><div><span class="text-xs font-bold uppercase tracking-widest text-berit-green">Organização da vitrine</span><h2 class="mt-2 font-serif text-2xl">Categorias</h2><p class="mt-1 text-sm text-berit-muted">Cada categoria pode ter uma foto e uma frase exibidas na página inicial.</p></div><span id="categoryProductCount" class="rounded-full bg-berit-cream px-3 py-2 text-xs font-semibold text-berit-muted">0 categorias</span></div>
